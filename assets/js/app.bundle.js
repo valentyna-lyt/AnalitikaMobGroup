@@ -450,6 +450,40 @@ function updateLevelChart(){
     });
   }catch(err){ console.warn('updateLevelChart failed', err); }
 }
+
+
+// ---- Supabase helpers ----
+async function loadFromSupabase(){
+  try{
+    state.loading = true;
+    var resp = await window.supabase.from('units').select('*');
+    if (resp.error) throw resp.error;
+    state.dataSource = { type: 'supabase' };
+    state.raw = Array.isArray(resp.data) ? resp.data : [];
+  }catch(e){
+    console.warn('Supabase load failed', e);
+  }finally{
+    state.loading = false;
+  }
+}
+async function insertUnit(unit){
+  const resp = await window.supabase.from('units').insert([unit]);
+  if (resp.error) throw resp.error;
+}
+async function updateUnitRow(id, patch){
+  const resp = await window.supabase.from('units').update(patch).eq('id', id);
+  if (resp.error) throw resp.error;
+}
+function subscribeRealtime(){
+  if (window.__unitsChan) return;
+  window.__unitsChan = window.supabase
+    .channel('units-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'units' }, async (_payload)=>{
+      await loadFromSupabase();
+      renderLayers(); updateKPI(); updateLevelChart();
+    })
+    .subscribe();
+}
 // ---- ui.js ----
 
 
@@ -470,6 +504,34 @@ function refreshParents(){
 }
 
 function bindUI(){
+  const qq = (id)=>document.getElementById(id);
+  try{
+    qq('btn-add-unit') && qq('btn-add-unit').addEventListener('click', async ()=>{
+      const name = qq('unit-name')?.value?.trim();
+      if (!name){ const em=qq('add-unit-msg'); if(em) em.textContent='Назва обовʼязкова'; return; }
+      const unit = {
+        name,
+        level: qq('unit-level')?.value?.trim() || null,
+        parent: qq('unit-parent')?.value?.trim() || null,
+        lat: Number(qq('unit-lat')?.value||0) || null,
+        lon: Number(qq('unit-lon')?.value||0) || null,
+        ytd: Number(qq('unit-ytd')?.value||0) || 0,
+        today: 0, m30: 0
+      };
+      const msg = qq('add-unit-msg');
+      if (msg) msg.textContent = 'Збереження...';
+      try{
+        await insertUnit(unit);
+        await loadFromSupabase();
+        renderLayers(); updateKPI(); updateLevelChart();
+        if (msg) msg.textContent = 'Готово ✅';
+      }catch(e){
+        console.warn(e);
+        if (msg) msg.textContent = 'Помилка збереження';
+      }
+    });
+  }catch(_e){}
+
   const q = (id)=>document.getElementById(id);
 
   q('filter-level')?.addEventListener('change', e=>{
