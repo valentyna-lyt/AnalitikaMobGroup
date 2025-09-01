@@ -1,0 +1,332 @@
+body{color:var(--text);background:var(--bg)}
+:root{--bg:#0b0f16;--card:#111827;--muted:#6b7280;--text:#ffffff}
+body.theme-light{--bg:#ffffff;--card:#f3f4f6;--muted:#4b5563;--text:#111111}
+
+:root {
+  --bg: #0b0e14;
+  --fg: #e6edf3;
+  --muted: #95a1ad;
+  --card: #131722;
+  --accent: #3ea6ff;
+  --ok: #3ddc97;
+  --warn: #ffb703;
+  --bad: #ff7575;
+  --border: #1f2633;
+}
+
+body.theme-light {
+  --bg: #f7f9fc;
+  --fg: #0b0e14;
+  --muted: #4c566a;
+  --card: #ffffff;
+  --accent: #0066cc;
+  --ok: #009e60;
+  --warn: #d48a00;
+  --bad: #c0392b;
+  --border: #e5e9f0;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.app-header, .app-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+.app-footer { border-top: 1px solid var(--border); border-bottom: none; }
+
+.header-actions button {
+  margin-left: 8px;
+}
+
+.controls {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.control-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.control-group .ml { margin-left: 16px; }
+
+.kpi {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 12px 16px;
+}
+.kpi-card {
+  background: var(--card);
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.kpi-title { color: var(--muted); font-size: 12px; }
+.kpi-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+
+.chart-box {
+  background: var(--card);
+  margin: 0 16px 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+#map {
+  height: 72vh;
+  margin: 0 16px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+button, input, select {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+button:hover { border-color: var(--accent); cursor: pointer; }
+
+/* Settings dialog */
+#settings-dialog::backdrop { background: rgba(0,0,0,.5); }
+.settings-form {
+  width: min(1100px, 95vw);
+  max-height: 90vh;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0;
+}
+.settings-form header, .settings-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+.settings-footer { border-top: 1px solid var(--border); border-bottom: 0; }
+.settings-toolbar {
+  display: flex; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border);
+}
+.settings-table-wrap { overflow: auto; max-height: 60vh; }
+.settings-table { width: 100%; border-collapse: collapse; }
+.settings-table th, .settings-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: left;
+}
+.settings-table input[type="text"], .settings-table input[type="number"] {
+  width: 140px;
+}
+.settings-table input[type="color"] { width: 40px; padding: 0; border: none; background: transparent; }
+.settings-table td:first-child { color: var(--muted); font-size: 12px; }
+
+/* Larger title in popup */
+.popup strong { font-size: 18px; }
+
+.popup { max-width: 240px; }
+
+.popup { font-size: 16px; }
+
+/* Compact layout for popup meta */
+.popup .popup-meta { margin-top:6px; display:flex; flex-direction:column; gap:2px; }
+.popup .popup-meta .lbl { opacity:0.8; margin-right:4px; }
+.popup .popup-meta .val { font-weight:600; }
+
+/* Force larger font size for popup */
+.popup { font-size: 18px !important; line-height: 1.4; }
+
+/* === Dark blue theme and hero header === */
+html, body { background: linear-gradient(90deg, #0a1a3a, #111322); color: #f2f6ff; }
+
+.hero{
+  padding: 28px 16px;
+  text-align: center;
+  background: linear-gradient(90deg, #173b8c, #0d1224);
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+.hero-inner{ max-width: 1100px; margin: 0 auto; display:flex; flex-direction:column; align-items:center; gap: 12px; }
+.hero-logo{ width: 124px; height: auto; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5)); }
+.hero-title{ margin:0; font-size: clamp(20px,3.2vw,36px); font-weight:800; letter-spacing:.4px; color:#fff; text-transform: uppercase; }
+
+/* Keep map readable on dark bg */
+#map { background:#0a1a3a; }
+
+/* Center and style the top header bar */
+.header-bar{
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+  font-weight: 800;
+  font-size: 22px;
+  color: #fff;
+}
+.hero, .hero-inner, .hero-title{ text-align: center; }
+
+/* Centered header bar */
+.header-bar{
+  display:inline-block;
+  width:100%;
+  text-align:center;
+  font-weight:800;
+  font-size:22px;
+  color:#fff;
+}
+.hero, .hero-inner, .hero-title{ text-align:center; }
+
+/* Controls spacing when placed below the map */
+main #map{ margin-bottom: 10px; }
+section.controls{ margin: 8px 16px 16px; }
+
+/* Photo in popup */
+.unit-photo-wrap{display:none;margin-top:8px;max-width:280px;}
+.unit-photo-wrap img{display:block;width:100%;height:auto;border-radius:8px}
+.unit-photo-wrap.show{display:block}
+
+
+/* --- Brand hero --- */
+.hero.hero--brand{
+  padding: 24px 16px 12px;
+  background: var(--bg);
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+body.theme-light .hero.hero--brand{ border-bottom-color: rgba(0,0,0,.06); }
+.hero-inner{ display:flex; flex-direction:column; align-items:center; gap:10px; }
+
+.hero-logo{ width:68px; height:auto; opacity:.95; }
+.hero-agency{ margin: 0; font-size: clamp(20px, 2.4vw, 28px); letter-spacing: .06em; color: var(--text); font-weight: 700; text-align:center; }
+.hero-project{ margin: 0; font-size: clamp(22px, 2.8vw, 32px); letter-spacing: .08em; color: var(--text); font-weight: 800; text-align:center; }
+
+.u-upper{ text-transform: uppercase; }
+
+/* Header actions row */
+.app-header{
+  display:flex; justify-content:flex-end; align-items:center;
+  gap:8px; padding: 8px 12px; background: var(--bg);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+body.theme-light .app-header{ border-bottom-color: rgba(0,0,0,.06); }
+.app-header .header-actions button{
+  background: var(--card); color: var(--text);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 8px; padding:6px 10px; cursor:pointer;
+}
+body.theme-light .app-header .header-actions button{
+  border-color: rgba(0,0,0,.08);
+}
+
+.kpi-box{ color: var(--text); }
+
+/* Ensure map takes space below hero */
+#map{ min-height: 62vh; }
+
+/* Popup text inherits theme color */
+.leaflet-popup-content{ color: var(--text); }
+
+/* Settings dialog color tweak */
+.settings-form{ color: var(--text); }
+.settings-table th, .settings-table td{ color: var(--text); }
+
+
+/* --- Two-column layout: map left, side panel right --- */
+.layout {
+  display: grid;
+  grid-template-columns: 70% 30%;
+  gap: 12px;
+  padding: 12px;
+}
+
+.layout-map {
+  min-height: 70vh;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+  min-height: 70vh;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 8px;
+}
+
+.layout-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.kpi-box {
+  background: var(--card);
+  color: var(--text);
+  padding: 16px;
+  border-radius: 8px;
+  text-align: left;
+}
+
+/* --- Safe animations --- */
+@keyframes fadeLeft { from{opacity:0; transform:translateX(-12px);} to{opacity:1; transform:none;} }
+.hero-logo{ animation: fadeLeft .6s ease-out both; width: 160px; height:auto; }
+.hero-agency{ animation: fadeLeft .7s ease-out both .05s; }
+.hero-project{ animation: fadeLeft .8s ease-out both .1s; }
+
+@media (prefers-reduced-motion: reduce){
+  .hero-logo,.hero-agency,.hero-project{ animation: none !important; }
+}
+
+/* Popup improve contrast */
+.leaflet-popup-content{ color:#000 !important; }
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{ background:#fff; color:#000; }
+
+/* Chart area */
+.chart-box{ background: var(--card); border-radius:8px; padding:12px; height:360px; }
+#levelChart{ width:100% !important; height:100% !important; }
+
+/* SAFE THEME TEXT */
+body, .app-header, .kpi-box, .controls, .settings-form,
+.settings-table th, .settings-table td, .settings-toolbar button, .settings-toolbar input,
+.chart-box, .hero-agency, .hero-project, .header-actions button { color: var(--text); }
+
+
+/* KPI Box Styling (card) */
+#kpi-box{
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  padding: 24px;
+  margin: 20px auto;
+  text-align: center;
+  font-size: 26px;
+  font-weight: bold;
+  color: var(--text);
+}
+
+/* FORCE LIGHT TEXT BLACK */
+body.theme-light, body.theme-light * { color: var(--text) !important; }
+
+/* Sticky right sidebar */
+.layout-side{ position: sticky; top: 12px; align-self: start; height: fit-content; }
+
+/* Skeleton loader */
+@keyframes shimmer{ 0%{background-position:-500px 0} 100%{background-position:500px 0} }
+.skeleton{ border-radius:12px; background: linear-gradient(90deg, rgba(255,255,255,.08) 25%, rgba(255,255,255,.14) 37%, rgba(255,255,255,.08) 63%); background-size:1000px 100%; animation: shimmer 1.2s infinite; }
+.kpi-skeleton{ height: 84px; }
+.chart-skeleton{ height: 340px; }
