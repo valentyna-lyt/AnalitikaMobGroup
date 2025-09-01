@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>АНАЛІТИКА РОБОТИ МОБІЛЬНИХ ГРУП</title>
+
+  <!-- Leaflet core -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+
+  <!-- MarkerCluster -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+  <!-- Heatmap (Leaflet.heat) -->
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+  <!-- EasyPrint -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.easyPrint/2.1.9/leaflet.easyPrint.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- PapaParse for CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <!-- SheetJS for XLSX -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  
+  <section id="hero-header" class="hero hero--brand">
+    <div class="hero-inner">
+      <img src="assets/img/emblem.png" alt="Емблема" class="hero-logo">
+      <h1 class="hero-agency u-upper">УПРАВЛІННЯ ГОЛОВНОЇ ІНСПЕКЦІЇ ГУНП В ХАРКІВСЬКІЙ ОБЛАСТІ</h1>
+      <h2 class="hero-project u-upper">АНАЛІТИКА РОБОТИ МОБІЛЬНИХ ГРУП</h2>
+    </div>
+  </section>
+    
+
+  
+  <header class="app-header">
+    <div class="header-actions">
+      <button id="btn-theme" title="Перемкнути тему">🌓</button>
+      <button id="btn-mypos" title="Моє місце">📍 Моє місце</button>
+      <button id="btn-print" title="Експорт карти в PDF/друк">🖨️ Друк</button>
+      <button id="btn-settings" title="Налаштування підрозділів">⚙️ Налаштування</button>
+    </div>
+  </header>
+    
+
+  
+
+  
+
+  
+
+  
+  
+  <main class="layout">
+    <div class="layout-map">
+      <div id="map"></div>
+    </div>
+    <aside class="layout-side">
+      <section id="kpi-box" class="kpi-box"></section>
+      <section class="chart-box">
+        <canvas id="levelChart"></canvas>
+      </section>
+    </aside>
+  </main>
+    
+    
+
+<section class="controls">
+    <div class="control-group">
+      <label>Джерело даних:</label>
+      <button id="btn-load-demo">Демо</button>
+      <input type="file" id="file-input" accept=".csv,.json,.xlsx" />
+      <input type="text" id="url-input" placeholder="Вставте URL до CSV/JSON (Google Sheet: ...output=csv)" />
+      <button id="btn-load-url">Завантажити URL</button>
+    </div>
+
+    <div class="control-group">
+      <label>Період:</label>
+      <label><input type="radio" name="period" value="today" checked> Сьогодні</label>
+      <label><input type="radio" name="period" value="m30"> 30 днів</label>
+      <label><input type="radio" name="period" value="ytd"> Рік</label>
+
+      <label class="ml">Режим карти:</label>
+      <label><input type="radio" name="mapmode" value="points" checked> Точки</label>
+      <label><input type="radio" name="mapmode" value="clusters"> Кластери</label>
+      <label><input type="radio" name="mapmode" value="heat"> Теплова</label>
+    </div>
+
+    <div class="control-group">
+      <label>Рівень:</label>
+      <select id="filter-level">
+        <option value="">Всі</option>
+        <option value="ГУНП">ГУНП</option>
+        <option value="ХРУП">ХРУП</option>
+        <option value="ВП">ВП</option>
+        <option value="ВнП">ВнП</option>
+      </select>
+
+      <label class="ml">Підпорядкування:</label>
+      <select id="filter-parent">
+        <option value="">Всі</option>
+      </select>
+
+      <label class="ml">Пошук:</label>
+      <input type="search" id="search-name" placeholder="Назва підрозділу...">
+    </div>
+
+    <div class="control-group">
+      <label>Автооновлення (хв):</label>
+      <input type="number" id="refresh-min" min="0" max="1440" step="1" value="0">
+      <button id="btn-export-json">Експорт JSON</button>
+      <button id="btn-export-csv">Експорт CSV</button>
+    </div>
+  </section>
+
+
+  <!-- Settings Modal -->
+  <dialog id="settings-dialog">
+    <form method="dialog" class="settings-form">
+      <header>
+        <h2>Налаштування підрозділів</h2>
+        <button id="settings-close" value="cancel">✖</button>
+      </header>
+      <div class="settings-toolbar">
+        <input type="search" id="settings-search" placeholder="Фільтр за назвою...">
+        <button type="button" id="settings-reset">Скинути зміни</button>
+        <button type="button" id="settings-apply">Застосувати</button>
+      </div>
+      <div class="settings-table-wrap">
+        <table id="settings-table" class="settings-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Назва</th>
+              <th>Рівень</th>
+              <th>Підпорядкування</th>
+              <th>Lat</th>
+              <th>Lon</th>
+              <th>Колір</th>
+            </tr>
+          </thead>
+          <tbody id="settings-tbody">
+          </tbody>
+        </table>
+      </div>
+      <footer class="settings-footer">
+        <small>Зміни зберігаються в LocalStorage цього браузера.</small>
+      </footer>
+    </form>
+  </dialog>
+
+  <footer class="app-footer">
+    <div>© 2025 • Frontend‑only демо. Дані умовні.</div>
+  </footer>
+
+  <!-- App scripts -->
+  <script src="assets/js/app.bundle.js"></script>
+</body>
+</html>
