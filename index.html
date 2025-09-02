@@ -68,21 +68,6 @@
     </div>
     <aside class="layout-side">
       <section id="kpi-box" class="kpi-box"></section>
-
-      <section class="card">
-        <h3>Додати підрозділ</h3>
-        <div class="grid2">
-          <input id="unit-name" placeholder="Назва *" />
-          <input id="unit-level" placeholder="Рівень (ВнП/ВП/РУП/...)" />
-          <input id="unit-parent" placeholder="Батьківський підрозділ" />
-          <input id="unit-lat" placeholder="Широта (49.99)" />
-          <input id="unit-lon" placeholder="Довгота (36.23)" />
-          <input id="unit-ytd" placeholder="YTD (кількість)" />
-        </div>
-        <button id="btn-add-unit">Додати</button>
-        <div id="add-unit-msg" class="muted"></div>
-      </section>
-
       <section class="chart-box">
         <canvas id="levelChart"></canvas>
       </section>
@@ -180,6 +165,7 @@
   </footer>
 
   <!-- App scripts -->
+  
   <!-- Supabase SDK + конфіг -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="assets/js/config.js"></script>
@@ -189,6 +175,7 @@
       window.APP_CONFIG.SUPABASE_ANON_KEY
     );
   </script>
-\1
+
+  <script src="assets/js/app.bundle.js"></script>
 </body>
 </html>
