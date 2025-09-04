@@ -1,0 +1,7 @@
+name = "analitika-mob-worker"
+compatibility_date = "2024-09-04"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "analitika_mob_db"
+database_id = "5317991c-803d-417c-bbc2-fb6662fe3124"
