@@ -1,0 +1,12 @@
+{
+  "name": "analitika-map",
+  "private": true,
+  "devDependencies": {
+    "wrangler": "^3.74.0"
+  },
+  "scripts": {
+    "dev": "wrangler pages dev . --d1=DB",
+    "migrate:local": "wrangler d1 migrations apply analitika_mob_db --local",
+    "migrate:prod": "wrangler d1 migrations apply analitika_mob_db"
+  }
+}
