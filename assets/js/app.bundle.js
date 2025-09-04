@@ -610,7 +610,11 @@ function openSettings(){
 
   // Buttons
   btnClose?.addEventListener('click', ()=>dlg?.close());
-  btnApply?.addEventListener('click', ()=>{
+  btnApply?.addEventListener('click', async ()=>{
+<<<<<<< HEAD
+=======
+    await syncEditsToAPI();
+>>>>>>> 53afbfc17b60001168e2f8d7c2bade99e35fd5c3
     reapplyEdits(); saveSettings(); renderLayers(); updateKPI(); updateLevelChart && updateLevelChart(); dlg?.close();
   });
   btnReset?.addEventListener('click', ()=>{
@@ -634,7 +638,42 @@ window.openSettings = openSettings;
 
 
 
-async function boot(){
+<<<<<<< HEAD
+async // ---- Cloudflare API bridge (injected) ----
+=======
+async // ---- Cloudflare API bridge ----
+>>>>>>> 53afbfc17b60001168e2f8d7c2bade99e35fd5c3
+async function loadFromAPI(){
+  const base = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || '';
+  const res = await fetch(base + '/api/units', {cache:'no-cache'});
+  if (!res.ok) throw new Error('API list failed');
+  const rows = await res.json();
+  state.dataSource = { type:'api', url:'' };
+  state.raw = Array.isArray(rows) ? rows : [];
+<<<<<<< HEAD
+=======
+  reapplyEdits();
+  saveSettings();
+>>>>>>> 53afbfc17b60001168e2f8d7c2bade99e35fd5c3
+}
+async function syncEditsToAPI(){
+  try{
+    const base = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || '';
+    const token = (window.APP_CONFIG && window.APP_CONFIG.ADMIN_TOKEN) || '';
+    const edits = state.edits || {};
+    const payload = Object.entries(edits).map(([id, patch])=>({ id:Number(id), ...patch }));
+    if (!payload.length) return;
+    const res = await fetch(base + '/api/units/bulk', {
+      method:'POST',
+      headers: {'Content-Type':'application/json', ...(token?{'Authorization':'Bearer '+token}:{})},
+      body: JSON.stringify({ edits: payload })
+    });
+    if (!res.ok) throw new Error('API bulk failed');
+    state.edits = {};
+  }catch(e){ console.warn('syncEditsToAPI failed', e); }
+}
+
+function boot(){
   loadSettings();
   if (state.theme==='light') document.body.classList.add('theme-light');
 
@@ -643,9 +682,22 @@ async function boot(){
   bindUI();
 
   try {
-    state.dataSource = { type: 'demo', url: '' };
-    await loadDemo();
+<<<<<<< HEAD
+    try {
+      await loadFromAPI();
+    } catch(e){
+      console.warn('API load failed, fallback to demo', e);
+      state.dataSource = { type: 'demo', url: '' };
+      await loadDemo();
+    }
+=======
+    await loadFromAPI();
+>>>>>>> 53afbfc17b60001168e2f8d7c2bade99e35fd5c3
   } catch(e){
+    try {
+      state.dataSource = { type: 'demo', url: '' };
+      await loadDemo();
+    } catch(e){
     console.warn('Помилка при завантаженні даних (демо)', e);
   }
 

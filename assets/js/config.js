@@ -1,5 +1,14 @@
-// Public anon keys are safe to expose in the browser.
+<<<<<<< HEAD
+// Cloudflare API config (can be empty for same-origin)
 window.APP_CONFIG = {
-  SUPABASE_URL: "https://tageqrvymxpjpziiejqq.supabase.co",
-  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhZ2VxcnZ5bXhwanB6aWllanFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3NTY0NzMsImV4cCI6MjA3MjMzMjQ3M30.agzFthMi92LdAH2q6wPU2ItpwrIiHrjBg7sP5vLrhNY"
+  API_BASE: '',         // e.g. 'https://your-pages.site'
+  ADMIN_TOKEN: ''       // optional 'Bearer' token; leave '' if not used
+=======
+// Cloudflare API config
+window.APP_CONFIG = {
+  // keep empty to use same origin
+  API_BASE: '',
+  // optional admin token to protect writes; set in Cloudflare Pages > Settings > Environment variables
+  ADMIN_TOKEN: ''
+>>>>>>> 53afbfc17b60001168e2f8d7c2bade99e35fd5c3
 };
