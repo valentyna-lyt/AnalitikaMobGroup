@@ -165,21 +165,9 @@
   </footer>
 
   <!-- App scripts -->
-<script src="assets/js/app.bundle.js"></script>
-  <!-- Supabase SDK + config -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/js/config.js"></script>
-
-  <!-- Initialize Supabase client -->
-  <script>
-    window.supabase = supabase.createClient(
-      window.APP_CONFIG.SUPABASE_URL,
-      window.APP_CONFIG.SUPABASE_ANON_KEY
-    );
-  </script>
-
-  <!-- App code (cache-busted) -->
-  <script src="assets/js/app.bundle.js?v=103"></script>
+<script src="assets/js/config.js"></script>
+  <script src="assets/js/app.bundle.js"></script>
+  <!-- Supabase SDK + config --><!-- App code (cache-busted) -->
 
 </body>
 </html>
