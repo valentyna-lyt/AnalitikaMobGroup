@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
-  <!-- Heatmap (Leaflet.heat) -->
+  <!-- Heatmap -->
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
   <!-- EasyPrint -->
@@ -29,11 +29,185 @@
   <!-- SheetJS for XLSX -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <!-- Styles -->
   <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
-  
+
+  <!-- ===== AUTH OVERLAY ===== -->
+  <div id="auth-overlay" style="display:none">
+
+    <!-- Login -->
+    <div id="auth-login" class="auth-box" style="display:flex; flex-direction:column; align-items:center">
+      <div class="auth-logo">
+        <img src="assets/img/emblem.png" alt="Емблема" style="width:64px; height:auto;">
+      </div>
+      <h2>АНАЛІТИКА МГ</h2>
+      <p class="auth-subtitle">Система аналітики роботи мобільних груп</p>
+      <form id="auth-login-form" style="width:100%">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="login-email" required placeholder="your@email.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label>Пароль</label>
+          <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div id="login-error" class="error-msg"></div>
+        <button type="submit" class="btn-primary">Увійти</button>
+        <a href="#" id="link-forgot" class="link-secondary">Забули пароль?</a>
+      </form>
+    </div>
+
+    <!-- Forgot password -->
+    <div id="auth-forgot" class="auth-box" style="display:none; flex-direction:column; align-items:center">
+      <h2>Відновлення пароля</h2>
+      <p class="auth-subtitle">Введіть email — надішлемо посилання для відновлення.</p>
+      <form id="auth-forgot-form" style="width:100%">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="forgot-email" required placeholder="your@email.com" autocomplete="email">
+        </div>
+        <div id="forgot-error" class="error-msg"></div>
+        <div id="forgot-msg" class="success-msg"></div>
+        <button type="submit" class="btn-primary">Надіслати лист</button>
+        <a href="#" id="link-back-login" class="link-secondary">← Назад до входу</a>
+      </form>
+    </div>
+
+    <!-- Reset password (from email link) -->
+    <div id="auth-reset-password" class="auth-box" style="display:none; flex-direction:column; align-items:center">
+      <h2>Новий пароль</h2>
+      <p class="auth-subtitle">Введіть новий пароль для вашого акаунту.</p>
+      <form id="auth-reset-password-form" style="width:100%">
+        <div class="form-group">
+          <label>Новий пароль</label>
+          <input type="password" id="new-password" required placeholder="Мінімум 6 символів" minlength="6" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label>Підтвердіть пароль</label>
+          <input type="password" id="confirm-password" required placeholder="Повторіть пароль" autocomplete="new-password">
+        </div>
+        <div id="reset-error" class="error-msg"></div>
+        <button type="submit" class="btn-primary">Зберегти пароль</button>
+      </form>
+    </div>
+
+  </div>
+  <!-- /AUTH OVERLAY -->
+
+
+  <!-- ===== UNIT CASES MODAL ===== -->
+  <dialog id="unit-cases-modal" class="app-modal wide-modal">
+    <div class="modal-header">
+      <h3 id="unit-cases-title">Кураторські справи</h3>
+      <button id="unit-cases-close" class="btn-icon">✖</button>
+    </div>
+    <div class="modal-body">
+      <div id="unit-cases-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button id="unit-cases-add-btn" class="btn-primary" style="display:none; width:auto; padding:8px 20px">+ Додати справу</button>
+    </div>
+  </dialog>
+
+  <!-- ===== CASE EDIT MODAL ===== -->
+  <dialog id="case-edit-modal" class="app-modal">
+    <div class="modal-header">
+      <h3 id="case-edit-modal-title">Справа</h3>
+      <button type="button" id="case-edit-close-x" class="btn-icon">✖</button>
+    </div>
+    <form id="case-edit-form">
+      <input type="hidden" id="case-edit-id">
+      <input type="hidden" id="case-edit-unit-id">
+      <input type="hidden" id="case-edit-unit-name">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Назва справи *</label>
+          <input type="text" id="case-edit-title-input" required placeholder="Наприклад: Справа №123/2025">
+        </div>
+        <div class="form-group">
+          <label>Дата</label>
+          <input type="date" id="case-edit-date">
+        </div>
+        <div class="form-group">
+          <label>Опис</label>
+          <textarea id="case-edit-description" rows="4" placeholder="Детальний опис справи..."></textarea>
+        </div>
+        <div id="case-edit-error" class="error-msg"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="case-edit-cancel">Скасувати</button>
+        <button type="submit" class="btn-primary" style="width:auto; padding:8px 20px">Зберегти</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ===== ADMIN PANEL MODAL ===== -->
+  <dialog id="admin-modal" class="app-modal full-modal">
+    <div class="modal-header">
+      <h3>🔐 Адмін-панель</h3>
+      <button id="admin-close" class="btn-icon">✖</button>
+    </div>
+    <div class="admin-tabs">
+      <button class="tab-btn active">Кураторські справи</button>
+    </div>
+    <div class="modal-body">
+      <div class="admin-toolbar">
+        <span id="admin-total-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Підрозділ</th>
+              <th>Назва справи</th>
+              <th>Дата справи</th>
+              <th>Додано</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="admin-cases-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ===== SETTINGS MODAL ===== -->
+  <dialog id="settings-dialog">
+    <form method="dialog" class="settings-form">
+      <header>
+        <h2>Налаштування підрозділів</h2>
+        <button id="settings-close" value="cancel">✖</button>
+      </header>
+      <div class="settings-toolbar">
+        <input type="search" id="settings-search" placeholder="Фільтр за назвою...">
+        <button type="button" id="settings-reset">Скинути зміни</button>
+        <button type="button" id="settings-apply">Застосувати</button>
+      </div>
+      <div class="settings-table-wrap">
+        <table id="settings-table" class="settings-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Назва</th><th>Рівень</th><th>Підпорядкування</th>
+              <th>Lat</th><th>Lon</th><th>Колір</th>
+            </tr>
+          </thead>
+          <tbody id="settings-tbody"></tbody>
+        </table>
+      </div>
+      <footer class="settings-footer">
+        <small>Зміни зберігаються в LocalStorage цього браузера.</small>
+      </footer>
+    </form>
+  </dialog>
+
+
+  <!-- ===== PAGE CONTENT ===== -->
+
   <section id="hero-header" class="hero hero--brand">
     <div class="hero-inner">
       <img src="assets/img/emblem.png" alt="Емблема" class="hero-logo">
@@ -41,9 +215,7 @@
       <h2 class="hero-project u-upper">АНАЛІТИКА РОБОТИ МОБІЛЬНИХ ГРУП</h2>
     </div>
   </section>
-    
 
-  
   <header class="app-header">
     <div class="header-actions">
       <button id="btn-theme" title="Перемкнути тему">🌓</button>
@@ -51,17 +223,13 @@
       <button id="btn-print" title="Експорт карти в PDF/друк">🖨️ Друк</button>
       <button id="btn-settings" title="Налаштування підрозділів">⚙️ Налаштування</button>
     </div>
+    <div class="user-info-row">
+      <span id="user-email" class="user-email"></span>
+      <button id="btn-admin" style="display:none" title="Адмін-панель">🔐 Адмін</button>
+      <button id="btn-logout" title="Вийти">🚪 Вийти</button>
+    </div>
   </header>
-    
 
-  
-
-  
-
-  
-
-  
-  
   <main class="layout">
     <div class="layout-map">
       <div id="map"></div>
@@ -73,10 +241,8 @@
       </section>
     </aside>
   </main>
-    
-    
 
-<section class="controls">
+  <section class="controls">
     <div class="control-group">
       <label>Джерело даних:</label>
       <button id="btn-load-demo">Демо</button>
@@ -124,62 +290,22 @@
     </div>
   </section>
 
-
-  <!-- Settings Modal -->
-  <dialog id="settings-dialog">
-    <form method="dialog" class="settings-form">
-      <header>
-        <h2>Налаштування підрозділів</h2>
-        <button id="settings-close" value="cancel">✖</button>
-      </header>
-      <div class="settings-toolbar">
-        <input type="search" id="settings-search" placeholder="Фільтр за назвою...">
-        <button type="button" id="settings-reset">Скинути зміни</button>
-        <button type="button" id="settings-apply">Застосувати</button>
-      </div>
-      <div class="settings-table-wrap">
-        <table id="settings-table" class="settings-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Назва</th>
-              <th>Рівень</th>
-              <th>Підпорядкування</th>
-              <th>Lat</th>
-              <th>Lon</th>
-              <th>Колір</th>
-            </tr>
-          </thead>
-          <tbody id="settings-tbody">
-          </tbody>
-        </table>
-      </div>
-      <footer class="settings-footer">
-        <small>Зміни зберігаються в LocalStorage цього браузера.</small>
-      </footer>
-    </form>
-  </dialog>
-
   <footer class="app-footer">
-    <div>© 2025 • Frontend‑only демо. Дані умовні.</div>
+    <div>© 2025 • ГУНП в Харківській області</div>
   </footer>
 
-  <!-- App scripts -->
-<script src="assets/js/app.bundle.js"></script>
-  <!-- Supabase SDK + config -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- App scripts (load order matters) -->
   <script src="assets/js/config.js"></script>
-
-  <!-- Initialize Supabase client -->
   <script>
     window.supabase = supabase.createClient(
       window.APP_CONFIG.SUPABASE_URL,
       window.APP_CONFIG.SUPABASE_ANON_KEY
     );
   </script>
-
-  <!-- App code (cache-busted) -->
-  <script src="assets/js/app.bundle.js?v=103"></script>
+  <script src="assets/js/app.bundle.js?v=104"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/cases.js"></script>
+  <script src="assets/js/admin.js"></script>
 
 </body>
 </html>

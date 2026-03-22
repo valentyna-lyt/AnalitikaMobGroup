@@ -357,6 +357,7 @@ function popupHTML(d){
   let photoUrl = d.photoUrl || (d.photoId ? driveViewUrlFromId(d.photoId) : '');
   const fixed = photoUrlFor(d);
   if (fixed) photoUrl = fixed;
+  const safeName = (d.name||'').replace(/"/g,'&quot;');
   return `<div class="popup unit-popup" data-photo-url="${photoUrl||''}">
     <strong>${d.name || '—'}</strong>
     <div style="margin-top:6px">
@@ -364,6 +365,9 @@ function popupHTML(d){
       <div>Прізвища перевіряючих: <b>${d.inspectors || '—'}</b></div>
       <div>Дата останньої перевірки: <b>${formatDate(d.last_check)}</b></div>
     </div>
+    <button class="btn-unit-info" data-unit-id="${d.id||''}" data-unit-name="${safeName}">
+      📋 Кураторські справи
+    </button>
   </div>`;
 }
 
