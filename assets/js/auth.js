@@ -26,11 +26,10 @@ function showAuthMode(mode) {
 async function handleSignIn(user) {
   window.currentUser = user;
   try {
-    const { data } = await window.supabase
-      .from('profiles')
-      .select('role, full_name')
-      .eq('id', user.id)
-      .single();
+    const profilePromise = window.supabase
+      .from('profiles').select('role, full_name').eq('id', user.id).single();
+    const timeout = new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 6000));
+    const { data } = await Promise.race([profilePromise, timeout]);
     window.userProfile = data || { role: 'viewer' };
   } catch {
     window.userProfile = { role: 'viewer' };
@@ -42,17 +41,34 @@ async function handleSignIn(user) {
   const adminBtn = document.getElementById('btn-admin');
   if (adminBtn) adminBtn.style.display = isAdmin() ? '' : 'none';
 
+  document.getElementById('btn-login')?.style && (document.getElementById('btn-login').style.display = 'none');
+  document.getElementById('btn-logout') && (document.getElementById('btn-logout').style.display = '');
   hideAuthOverlay();
+
+  // Re-render open unit modal with correct admin state
+  const modal = document.getElementById('unit-cases-modal');
+  if (modal && modal.open && typeof window.loadAndRenderFilesTab === 'function') {
+    window.loadAndRenderFilesTab(modal.dataset.unitId, modal.dataset.unitName);
+  }
 }
 
 function handleSignOut() {
   window.currentUser = null;
   window.userProfile = null;
+  const emailEl = document.getElementById('user-email');
+  if (emailEl) emailEl.textContent = '';
+  document.getElementById('btn-admin')?.style && (document.getElementById('btn-admin').style.display = 'none');
+  document.getElementById('btn-login')?.style && (document.getElementById('btn-login').style.display = '');
+  document.getElementById('btn-logout')?.style && (document.getElementById('btn-logout').style.display = 'none');
   showAuthOverlay();
   showAuthMode('login');
 }
 
 async function initAuth() {
+  // Initially hide logout, show login until session is confirmed
+  document.getElementById('btn-logout')?.style && (document.getElementById('btn-logout').style.display = 'none');
+  document.getElementById('btn-login')?.style && (document.getElementById('btn-login').style.display = '');
+
   window.supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
       await handleSignIn(session.user);
@@ -139,6 +155,12 @@ function bindAuthUI() {
       window.history.replaceState(null, '', window.location.pathname);
       hideAuthOverlay();
     }
+  });
+
+  // --- Login button (header) ---
+  document.getElementById('btn-login')?.addEventListener('click', () => {
+    showAuthOverlay();
+    showAuthMode('login');
   });
 
   // --- Logout ---
