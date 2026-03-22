@@ -11,6 +11,20 @@ var DEFAULT_SECTIONS = [
   'Робота під час блекауту'
 ];
 
+// ---- Storage path sanitizer ----
+// Supabase Storage does not allow: [ ] , ; + = @ & $ # % ^ { } | \ < > ? " `
+function sanitizePathSegment(s) {
+  return s
+    .replace(/\[/g, '(').replace(/\]/g, ')')   // [1] → (1)
+    .replace(/,/g, ' ').replace(/;/g, ' ')       // comma, semicolon → space
+    .replace(/[^\w\s\-.()/їіє'ІЇЄАБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЬЮЯабвгдежзиклмнопрстуфхцчшщьюяіїє]/g, '_')
+    .replace(/_+/g, '_').replace(/\s+/g, ' ').trim();
+}
+
+function sanitizeStoragePath(path) {
+  return path.split('/').map(sanitizePathSegment).join('/');
+}
+
 // ---- File type helpers ----
 function isImage(name) { return /\.(jpe?g|png|gif|webp|bmp|tiff?)$/i.test(name); }
 function isPDF(name)   { return /\.pdf$/i.test(name); }
@@ -354,7 +368,7 @@ async function adminUploadFilesToSection(fileList, unitId, unitName, sectionName
   for (var i = 0; i < files.length; i++) {
     var file = files[i];
     try {
-      var storagePath = String(unitId) + '/' + sectionName + '/' + file.name;
+      var storagePath = sanitizeStoragePath(String(unitId) + '/' + sectionName + '/' + file.name);
       var up = await window.supabase.storage.from('unit-files').upload(storagePath, file, { upsert: true });
       if (up.error) {
         errors.push(file.name + ': ' + up.error.message);
@@ -390,7 +404,7 @@ async function adminUploadFolder(fileList, unitId, unitName, onProgress) {
       else if (parts.length === 2) { secName = parts[1]; fileSubPath = file.name; }
       else { secName = DEFAULT_SECTIONS[0]; fileSubPath = file.name; }
 
-      var storagePath = String(unitId) + '/' + secName + '/' + fileSubPath;
+      var storagePath = sanitizeStoragePath(String(unitId) + '/' + secName + '/' + fileSubPath);
       var up = await window.supabase.storage.from('unit-files').upload(storagePath, file, { upsert: true });
       if (up.error) {
         errors.push(file.name + ': ' + up.error.message);
