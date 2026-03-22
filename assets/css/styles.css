@@ -484,22 +484,33 @@ body {
   color: #fff !important;
 }
 .leaflet-popup-tip { background: rgba(12, 26, 46, 0.92) !important; }
-.leaflet-popup-content { color: #fff !important; font-size: 14px; }
-.popup strong { font-size: 15px; color: #fff; }
+.leaflet-popup-content { color: #fff !important; font-size: 13px; min-width: 220px; }
+
+/* Popup structure */
+.popup-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.popup-info { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+.popup-row  { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.popup-label { color: rgba(255,255,255,0.55); font-size: 11px; white-space: nowrap; flex-shrink: 0; }
 
 /* Unit photo in popup */
 .unit-photo-wrap {
   display: none;
-  margin-top: 8px;
+  margin: 8px 0;
   border-radius: 8px;
   overflow: hidden;
-  max-height: 140px;
+  max-height: 150px;
 }
 .unit-photo-wrap.show { display: block; }
-.unit-photo-wrap img { width: 100%; height: auto; display: block; }
+.unit-photo-wrap img { width: 100%; height: auto; display: block; object-fit: cover; max-height: 150px; }
 
 .btn-unit-info {
-  margin-top: 10px;
+  margin-top: 8px;
   width: 100%;
   padding: 8px 12px;
   background: var(--accent-dim);
@@ -820,46 +831,76 @@ button, input, select { font-family: inherit; }
 .hidden { display: none !important; }
 
 /* ============================================================
-   SECTION TABS (inside files tab)
+   FOLDER CARDS (sections grid)
    ============================================================ */
-.sec-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 0 8px;
-  border-bottom: 1px solid var(--glass-border);
-  margin-bottom: 12px;
+.folders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  padding: 8px 0;
 }
-.sec-tab {
+.folder-card {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
+  gap: 6px;
+  padding: 16px 10px 12px;
   background: rgba(255,255,255,0.04);
   border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.folder-card:hover {
+  background: var(--accent-dim);
+  border-color: var(--glass-border-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+.folder-card.folder-empty { opacity: 0.45; cursor: default; }
+.folder-card.folder-empty:hover { transform: none; box-shadow: none; background: rgba(255,255,255,0.04); border-color: var(--glass-border); }
+.folder-icon { font-size: 36px; line-height: 1; }
+.folder-name { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.folder-count { font-size: 11px; color: var(--text-muted); }
+
+/* Section files panel (after clicking folder) */
+.sec-files-panel { padding-top: 4px; }
+.sec-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 12px;
+  border-bottom: 1px solid var(--glass-border);
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.sec-panel-back {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
   color: var(--text-muted);
   font-size: 12px;
+  padding: 4px 10px;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
 }
-.sec-tab.active {
+.sec-panel-back:hover { background: var(--accent-dim); color: var(--accent); border-color: var(--glass-border-accent); }
+.sec-upload-btn {
+  margin-left: auto;
   background: var(--accent-dim);
-  border-color: var(--glass-border-accent);
+  border: 1px solid var(--glass-border-accent);
+  border-radius: 8px;
   color: var(--accent);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
 }
-.sec-tab:hover:not(.active) { border-color: rgba(255,255,255,0.15); color: var(--text); }
-.sec-tab-label { font-size: 12px; }
-.sec-tab-count {
-  background: rgba(255,255,255,0.1);
-  border-radius: 10px;
-  padding: 0 5px;
-  font-size: 11px;
-  min-width: 18px;
-  text-align: center;
-}
-.sec-tab.active .sec-tab-count { background: var(--accent); color: #fff; }
+.sec-upload-btn:hover { background: var(--accent); color: #fff; }
 
 /* ============================================================
    FILES GRID

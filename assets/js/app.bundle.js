@@ -146,6 +146,7 @@ function coerceRecord(r){
   if (copy.color) copy.color = String(copy.color).trim();
   copy.inspectors = (copy.inspectors ?? '').toString().trim();
   copy.last_check = (copy.last_check ?? '').toString().trim();
+  copy.chief      = (copy.chief ?? '').toString().trim();
   return copy;
 }
 
@@ -315,10 +316,9 @@ function formatDate(str){
   if (!str) return '—';
   const d = new Date(str);
   if (isNaN(d)) return str;
-  const dd = String(d.getDate()).padStart(2,'0');
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const yyyy = d.getFullYear();
-  return `${dd}-${mm}-${yyyy}`;
+  const months = ['січня','лютого','березня','квітня','травня','червня',
+                  'липня','серпня','вересня','жовтня','листопада','грудня'];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} р.`;
 }
 
 
@@ -328,19 +328,46 @@ function driveViewUrlFromId(fileId){
   return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(fileId)}`;
 }
 
-// Immediately show photo when popup opens
-function attachHoverHandlersToPopup(popup){
+// Load photo when popup opens — tries static URL first, then Supabase unit_files
+async function attachHoverHandlersToPopup(popup){
   const el = popup.getElement()?.querySelector('.leaflet-popup-content');
   if (!el) return;
   const root = el.querySelector('.unit-popup');
   if (!root) return;
   const wrap = el.querySelector('.unit-photo-wrap');
   const img  = el.querySelector('.unit-photo-wrap img');
-  const url  = root.getAttribute('data-photo-url');
-  if (!url || !wrap || !img) return;
-  img.src = url;
-  wrap.classList.add('show');
-  img.addEventListener('error', ()=>wrap.classList.remove('show'));
+  if (!wrap || !img) return;
+
+  // 1. Try static/Google Drive URL hardcoded in data
+  const staticUrl = root.getAttribute('data-photo-url');
+  if (staticUrl) {
+    img.src = staticUrl;
+    wrap.classList.add('show');
+    img.addEventListener('error', ()=>wrap.classList.remove('show'));
+    return;
+  }
+
+  // 2. Try first image in section 1 from Supabase unit_files
+  const unitId = root.getAttribute('data-unit-id');
+  if (!unitId || !window.supabase) return;
+  try {
+    const { data } = await window.supabase
+      .from('unit_files')
+      .select('storage_path')
+      .eq('unit_id', String(unitId))
+      .eq('section_num', 1)
+      .or('mime_type.ilike.image/%,filename.ilike.%.jpg,filename.ilike.%.jpeg,filename.ilike.%.png,filename.ilike.%.webp')
+      .limit(1)
+      .maybeSingle();
+    if (!data?.storage_path) return;
+    const { data: signed } = await window.supabase.storage
+      .from('unit-files')
+      .createSignedUrl(data.storage_path, 3600);
+    if (!signed?.signedUrl) return;
+    img.src = signed.signedUrl;
+    wrap.classList.add('show');
+    img.addEventListener('error', ()=>wrap.classList.remove('show'));
+  } catch(e){ console.warn('popup photo load failed', e); }
 }
 
 // Map specific unit names/aliases to a fixed photo URL
@@ -359,16 +386,18 @@ function popupHTML(d){
   const fixed = photoUrlFor(d);
   if (fixed) photoUrl = fixed;
   const safeName = (d.name||'').replace(/"/g,'&quot;');
-  return `<div class="popup unit-popup" data-photo-url="${photoUrl||''}">
-    <strong>${d.name || '—'}</strong>
-    <div style="margin-top:6px">
-      <div>З початку року: <b>${Number(d.ytd||0)}</b></div>
-      <div>Прізвища перевіряючих: <b>${d.inspectors || '—'}</b></div>
-      <div>Дата останньої перевірки: <b>${formatDate(d.last_check)}</b></div>
+  const chief = d.chief || '';
+  return `<div class="popup unit-popup" data-photo-url="${photoUrl||''}" data-unit-id="${d.id||''}">
+    <div class="popup-title">${d.name || '—'}</div>
+    <div class="popup-info">
+      <div class="popup-row"><span class="popup-label">Керівник:</span> <span>${chief || '—'}</span></div>
+      <div class="popup-row"><span class="popup-label">Перевірок (рік):</span> <span><b>${Number(d.ytd||0)}</b></span></div>
+      <div class="popup-row"><span class="popup-label">Перевіряючі:</span> <span>${d.inspectors || '—'}</span></div>
+      <div class="popup-row"><span class="popup-label">Остання перевірка:</span> <span><b>${formatDate(d.last_check)}</b></span></div>
     </div>
     <div class="unit-photo-wrap"><img alt="Фото підрозділу" loading="lazy"></div>
     <button class="btn-unit-info" data-unit-id="${d.id||''}" data-unit-name="${safeName}">
-      📋 Кураторські справи
+      📋 Кураторська справа
     </button>
   </div>`;
 }
@@ -571,6 +600,7 @@ function rowTemplate(d){
       <td><input type="number" data-k="today" value="${Number(v('today')||0)}" min="0"></td>
       <td><input type="number" data-k="m30" value="${Number(v('m30')||0)}" min="0"></td>
       <td><input type="number" data-k="ytd" value="${Number(v('ytd')||0)}" min="0"></td>
+      <td><input type="text" data-k="chief" value="${esc(v('chief'))}" placeholder="Керівник підрозділу"></td>
       <td><input type="text" data-k="inspectors" value="${esc(v('inspectors'))}" placeholder="Прізвища перевіряючих"></td>
       <td><input type="date" data-k="last_check" value="${esc(v('last_check'))}"></td>
     </tr>`;
@@ -592,7 +622,7 @@ function openSettings(){
         <th>ID</th><th>Назва</th><th>Рівень</th><th>Батько</th>
         <th>lat</th><th>lon</th><th>Колір</th>
         <th>Сьогодні</th><th>30 днів</th><th>З поч. року</th>
-        <th>Прізвища перевіряючих</th><th>Дата останньої перевірки</th>
+        <th>Керівник</th><th>Прізвища перевіряючих</th><th>Дата останньої перевірки</th>
       </tr>`;
     thead.dataset.extended = '1';
   }

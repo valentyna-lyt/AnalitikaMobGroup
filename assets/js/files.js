@@ -2,35 +2,32 @@
 // Unit files: Supabase Storage viewer + admin uploader
 
 const UNIT_SECTIONS = [
-  { num: 1, short: 'Про підрозділ',   icon: '🏛️', name: 'Загальна інформація про підрозділ' },
-  { num: 2, short: 'Район та карта',  icon: '🗺️', name: 'Характеристика району та карта' },
-  { num: 3, short: 'Особовий склад',  icon: '👥', name: 'Особовий склад' },
-  { num: 4, short: 'Діяльність',      icon: '📋', name: 'Діяльність підрозділу' },
-  { num: 5, short: 'ПОГ підрозділи',  icon: '🗂️', name: 'Діяльність ПОГ підрозділів' },
-  { num: 6, short: 'Блокпости',       icon: '🚧', name: 'Блокпости' },
-  { num: 7, short: 'Відряджені',      icon: '👮', name: 'Відряджені поліцейські' },
-  { num: 8, short: 'Готовність',      icon: '⚡', name: 'Готовність до відключення електропостачання' },
+  { num: 1, short: 'Загальна інформація',  icon: '🏛️', name: 'Загальна інформація про підрозділ' },
+  { num: 2, short: 'Район та карта',       icon: '🗺️', name: 'Характеристика району та карта' },
+  { num: 3, short: 'Особовий склад',       icon: '👥', name: 'Особовий склад' },
+  { num: 4, short: 'Діяльність',           icon: '📋', name: 'Діяльність підрозділу' },
+  { num: 5, short: 'ПОГ підрозділи',       icon: '🗂️', name: 'Діяльність ПОГ підрозділів' },
+  { num: 6, short: 'Блокпости',            icon: '🚧', name: 'Блокпости' },
+  { num: 7, short: 'Відряджені',           icon: '👮', name: 'Відряджені поліцейські' },
+  { num: 8, short: 'Готовність',           icon: '⚡', name: 'Готовність до відключення електропостачання' },
 ];
 window.UNIT_SECTIONS = UNIT_SECTIONS;
 
-function isImage(name) {
-  return /\.(jpe?g|png|gif|webp)$/i.test(name);
-}
-function isPDF(name) {
-  return /\.pdf$/i.test(name);
-}
+// ---- File type helpers ----
+function isImage(name) { return /\.(jpe?g|png|gif|webp|bmp|tiff?)$/i.test(name); }
+function isPDF(name)   { return /\.pdf$/i.test(name); }
+function isOffice(name){ return /\.(docx?|xlsx?|pptx?|odt|ods|odp)$/i.test(name); }
+
 function fileIcon(name) {
-  if (isImage(name)) return '🖼️';
-  if (isPDF(name))   return '📄';
+  if (isImage(name))  return '🖼️';
+  if (isPDF(name))    return '📄';
   if (/\.docx?$/i.test(name)) return '📝';
   if (/\.xlsx?$/i.test(name)) return '📊';
+  if (/\.pptx?$/i.test(name)) return '📑';
   return '📎';
 }
 
-// ============================================================
-// VIEWER
-// ============================================================
-
+// ---- Supabase helpers ----
 async function loadUnitFiles(unitId) {
   const { data, error } = await window.supabase
     .from('unit_files')
@@ -51,8 +48,19 @@ async function getSignedUrl(storagePath) {
   } catch { return ''; }
 }
 
+// ============================================================
+// FOLDER-CARD VIEW
+// ============================================================
+
 function renderFilesTab(files, container, unitId, unitName) {
-  if (!files.length) {
+  // Group by section
+  const bySec = {};
+  UNIT_SECTIONS.forEach(s => { bySec[s.num] = []; });
+  files.forEach(f => { if (bySec[f.section_num]) bySec[f.section_num].push(f); });
+
+  const hasFiles = files.length > 0;
+
+  if (!hasFiles) {
     container.innerHTML = `<div class="no-data">Файли ще не завантажені для цього підрозділу</div>` +
       (isAdmin() ? `<div style="text-align:center;margin-top:12px">
         <button class="btn-primary" style="width:auto;padding:8px 20px" id="btn-go-upload">📁 Завантажити файли</button>
@@ -64,65 +72,93 @@ function renderFilesTab(files, container, unitId, unitName) {
     return;
   }
 
-  // Group by section
-  const bySec = {};
-  UNIT_SECTIONS.forEach(s => { bySec[s.num] = []; });
-  files.forEach(f => { if (bySec[f.section_num]) bySec[f.section_num].push(f); });
-  const active = UNIT_SECTIONS.filter(s => bySec[s.num].length > 0);
-
-  let html = `<div class="sec-tabs">`;
-  active.forEach((s, i) => {
-    html += `<button class="sec-tab${i===0?' active':''}" data-sec="${s.num}">
-      ${s.icon} <span class="sec-tab-label">${s.short}</span>
-      <span class="sec-tab-count">${bySec[s.num].length}</span>
-    </button>`;
+  // Folder grid
+  let html = `<div class="folders-grid">`;
+  UNIT_SECTIONS.forEach(s => {
+    const count = bySec[s.num].length;
+    html += `<div class="folder-card${count ? '' : ' folder-empty'}" data-sec="${s.num}">
+      <div class="folder-icon">${s.icon}</div>
+      <div class="folder-name">${s.short}</div>
+      <div class="folder-count">${count ? count + ' файл' + (count === 1 ? '' : count < 5 ? 'и' : 'ів') : 'порожньо'}</div>
+    </div>`;
   });
   html += `</div>`;
 
-  active.forEach((s, i) => {
-    html += `<div class="sec-panel${i===0?'':' hidden'}" data-sec="${s.num}">
+  // File panels (hidden initially)
+  UNIT_SECTIONS.forEach(s => {
+    html += `<div class="sec-files-panel hidden" data-panel="${s.num}">
+      <div class="sec-panel-header">
+        <button class="sec-panel-back">← Назад</button>
+        <span>${s.icon} ${s.name}</span>
+        ${isAdmin() ? `<button class="btn-sm sec-upload-btn" data-sec="${s.num}">⬆ Завантажити</button>` : ''}
+      </div>
       <div class="files-grid" id="fgrid-${s.num}"></div>
     </div>`;
   });
 
   container.innerHTML = html;
 
-  // Tab switching
-  container.querySelectorAll('.sec-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      container.querySelectorAll('.sec-tab').forEach(b => b.classList.remove('active'));
-      container.querySelectorAll('.sec-panel').forEach(p => p.classList.add('hidden'));
-      btn.classList.add('active');
-      container.querySelector(`.sec-panel[data-sec="${btn.dataset.sec}"]`)?.classList.remove('hidden');
+  // Render file cards
+  UNIT_SECTIONS.forEach(s => {
+    const grid = container.querySelector(`#fgrid-${s.num}`);
+    if (!grid || !bySec[s.num].length) {
+      if (grid) grid.innerHTML = '<div class="no-data" style="padding:16px">Файлів немає</div>';
+      return;
+    }
+    grid.innerHTML = bySec[s.num].map(f => renderFileCard(f)).join('');
+    // Batch load signed URLs
+    grid.querySelectorAll('[data-sp]').forEach(async el => {
+      const url = await getSignedUrl(el.dataset.sp);
+      if (!url) return;
+      if (el.tagName === 'IMG') {
+        el.src = url;
+      } else if (el.dataset.pdf) {
+        el.href = url;
+        el.addEventListener('click', e => { e.preventDefault(); openPDFViewer(url, el.dataset.name); });
+      } else if (el.dataset.office) {
+        const viewerUrl = 'https://docs.google.com/viewer?embedded=true&url=' + encodeURIComponent(url);
+        el.href = url;
+        el.addEventListener('click', e => { e.preventDefault(); openPDFViewer(viewerUrl, el.dataset.name); });
+      } else {
+        el.href = url;
+      }
+    });
+    // Delete buttons
+    grid.querySelectorAll('.file-del').forEach(btn => {
+      btn.addEventListener('click', () => deleteUnitFile(btn.dataset.id, unitId, unitName, container));
     });
   });
 
-  // Render file cards (then async-load signed URLs)
-  active.forEach(s => {
-    const grid = container.querySelector(`#fgrid-${s.num}`);
-    if (!grid) return;
-    grid.innerHTML = bySec[s.num].map(f => renderFileCard(f)).join('');
+  // Folder card click → open panel
+  container.querySelectorAll('.folder-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const sec = card.dataset.sec;
+      container.querySelector('.folders-grid').classList.add('hidden');
+      container.querySelectorAll('.sec-files-panel').forEach(p => p.classList.add('hidden'));
+      container.querySelector(`.sec-files-panel[data-panel="${sec}"]`)?.classList.remove('hidden');
+    });
   });
 
-  // Signed URLs — batch
-  container.querySelectorAll('[data-sp]').forEach(async el => {
-    const url = await getSignedUrl(el.dataset.sp);
-    if (!url) return;
-    if (el.tagName === 'IMG') {
-      el.src = url;
-    } else if (el.dataset.pdf) {
-      el.addEventListener('click', e => { e.preventDefault(); openPDFViewer(url, el.dataset.name); });
-      el.href = url;
-    } else {
-      el.href = url;
-    }
+  // Back button
+  container.querySelectorAll('.sec-panel-back').forEach(btn => {
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.sec-files-panel').forEach(p => p.classList.add('hidden'));
+      container.querySelector('.folders-grid').classList.remove('hidden');
+    });
   });
 
-  // Delete buttons
-  container.querySelectorAll('.file-del').forEach(btn => {
-    btn.addEventListener('click', () => deleteUnitFile(btn.dataset.id, unitId, unitName));
+  // Admin upload per section
+  container.querySelectorAll('.sec-upload-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('unit-cases-modal')?.close();
+      if (typeof openAdminPanel === 'function') openAdminPanel('files', unitId);
+    });
   });
 }
+
+// ============================================================
+// FILE CARD
+// ============================================================
 
 function renderFileCard(f) {
   const safe = escHTML(f.filename);
@@ -152,6 +188,17 @@ function renderFileCard(f) {
     </div>`;
   }
 
+  if (isOffice(f.filename)) {
+    return `<div class="file-card">
+      <a class="file-icon-link" data-sp="${sp}" data-office="1" data-name="${safe}" href="#">
+        <span class="file-big-icon">${fileIcon(f.filename)}</span>
+      </a>
+      <div class="file-card-name">${safe}</div>
+      ${del}
+    </div>`;
+  }
+
+  // Generic download
   return `<div class="file-card">
     <a class="file-icon-link" data-sp="${sp}" href="#" download="${safe}">
       <span class="file-big-icon">${fileIcon(f.filename)}</span>
@@ -161,6 +208,10 @@ function renderFileCard(f) {
   </div>`;
 }
 
+// ============================================================
+// PDF / OFFICE VIEWER
+// ============================================================
+
 function openPDFViewer(url, filename) {
   const modal = document.getElementById('pdf-viewer-modal');
   if (!modal) { window.open(url, '_blank'); return; }
@@ -169,7 +220,11 @@ function openPDFViewer(url, filename) {
   modal.showModal();
 }
 
-async function deleteUnitFile(fileId, unitId, unitName) {
+// ============================================================
+// DELETE
+// ============================================================
+
+async function deleteUnitFile(fileId, unitId, unitName, container) {
   if (!confirm('Видалити файл?')) return;
   const { data } = await window.supabase
     .from('unit_files').select('storage_path').eq('id', fileId).single();
@@ -178,10 +233,8 @@ async function deleteUnitFile(fileId, unitId, unitName) {
   }
   const { error } = await window.supabase.from('unit_files').delete().eq('id', fileId);
   if (error) { alert(error.message); return; }
-  // Reload files tab
   const files = await loadUnitFiles(unitId);
-  const container = document.getElementById('unit-files-tab-content');
-  if (container) renderFilesTab(files, container, unitId, unitName);
+  renderFilesTab(files, container || document.getElementById('unit-files-tab-content'), unitId, unitName);
 }
 
 // ============================================================
@@ -200,12 +253,11 @@ async function adminUploadFolder(fileList, unitId, unitName, onProgress) {
       const relPath = file.webkitRelativePath || file.name;
       const parts   = relPath.split('/');
 
-      // Find section folder (starts with digit 1-8 followed by space)
       let sectionNum  = 0;
       let fileSubPath = file.name;
 
       for (let i = 0; i < parts.length - 1; i++) {
-        const m = parts[i].match(/^([1-8])[\s_]/);
+        const m = parts[i].match(/^([1-8])[\s_\-\.]/);
         if (m) {
           sectionNum  = parseInt(m[1]);
           fileSubPath = parts.slice(i + 1).join('/');
@@ -272,10 +324,11 @@ function bindFilesUI() {
   document.getElementById('pdf-viewer-close')?.addEventListener('click', () => {
     const m = document.getElementById('pdf-viewer-modal');
     m?.close();
-    document.getElementById('pdf-viewer-iframe').src = '';
+    const iframe = document.getElementById('pdf-viewer-iframe');
+    if (iframe) iframe.src = '';
   });
 }
 
 bindFilesUI();
-window.adminUploadFolder  = adminUploadFolder;
-window.openPDFViewer      = openPDFViewer;
+window.adminUploadFolder = adminUploadFolder;
+window.openPDFViewer     = openPDFViewer;

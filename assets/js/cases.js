@@ -65,8 +65,8 @@ async function showUnitCasesModal(unitId, unitName) {
   modal.dataset.unitId = unitId;
   modal.dataset.unitName = unitName;
 
-  // Reset to cases tab
-  switchUnitModalTab('cases', unitId, unitName);
+  // Open on files tab by default (sections/folders view)
+  switchUnitModalTab('files', unitId, unitName);
 
   modal.showModal();
 }
