@@ -867,3 +867,31 @@ body.theme-light, body.theme-light * { color: var(--text) !important; }
 .admin-sec-group { margin-bottom: 16px; }
 .admin-sec-title { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
 .admin-files-total { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+
+/* ===== IMAGE VIEWER MODAL ===== */
+.img-modal { width: min(900px, 96vw); max-height: 92vh; }
+.img-modal-body { padding: 0 !important; display: flex; align-items: center; justify-content: center; background: #000; min-height: 60vh; }
+.img-modal-body img { max-width: 100%; max-height: 80vh; object-fit: contain; }
+
+/* ===== SECTION MANAGEMENT ===== */
+.sec-mgmt-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.add-section-form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; }
+.add-section-form input { flex: 1; min-width: 180px; }
+
+/* ===== FOLDER CARD DELETE BUTTON ===== */
+.folder-card { position: relative; }
+.btn-del-section {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0;
+  padding: 2px;
+  line-height: 1;
+  z-index: 2;
+}
+.folder-card:hover .btn-del-section { opacity: 0.7; }
+.btn-del-section:hover { opacity: 1 !important; }
