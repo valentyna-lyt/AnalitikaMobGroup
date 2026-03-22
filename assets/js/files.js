@@ -299,9 +299,8 @@ function bindFileCards(grid, unitId, unitName, container, bySection) {
       el.href = url;
       el.addEventListener('click', function(e) { e.preventDefault(); openPDFViewer(url, el.dataset.name); });
     } else if (el.dataset.office) {
-      var vUrl = 'https://docs.google.com/viewer?embedded=true&url=' + encodeURIComponent(url);
-      el.href = url;
-      el.addEventListener('click', function(e) { e.preventDefault(); openPDFViewer(vUrl, el.dataset.name); });
+      el.href = '#';
+      el.addEventListener('click', function(e) { e.preventDefault(); openPDFViewer(url, el.dataset.name); });
     } else {
       el.href = url;
     }
@@ -315,12 +314,12 @@ function bindFileCards(grid, unitId, unitName, container, bySection) {
 }
 
 // ============================================================
-// IMAGE / PDF VIEWERS
+// IMAGE VIEWER
 // ============================================================
 
 function openImgViewer(url, title) {
   var modal = document.getElementById('img-viewer-modal');
-  if (!modal) { window.open(url, '_blank'); return; }
+  if (!modal) { return; }
   var t = document.getElementById('img-viewer-title');
   var i = document.getElementById('img-viewer-img');
   if (t) t.textContent = title || '';
@@ -328,14 +327,79 @@ function openImgViewer(url, title) {
   modal.showModal();
 }
 
-function openPDFViewer(url, filename) {
+// ============================================================
+// DOCUMENT VIEWER (PDF.js + mammoth.js)
+// ============================================================
+
+async function openPDFViewer(url, filename) {
   var modal = document.getElementById('pdf-viewer-modal');
-  if (!modal) { window.open(url, '_blank'); return; }
-  var t = document.getElementById('pdf-viewer-title');
-  var f = document.getElementById('pdf-viewer-iframe');
-  if (t) t.textContent = filename;
-  if (f) f.src = url;
+  if (!modal) return;
+  var titleEl = document.getElementById('pdf-viewer-title');
+  var content = document.getElementById('doc-viewer-content');
+  if (titleEl) titleEl.textContent = filename || 'Документ';
+  content.innerHTML = '<div class="loading" style="padding:40px;text-align:center">⏳ Завантаження...</div>';
   modal.showModal();
+
+  try {
+    var ext = (filename || '').split('.').pop().toLowerCase();
+
+    // ── DOCX / DOC → mammoth.js ──────────────────────────────
+    if (ext === 'docx' || ext === 'doc') {
+      if (typeof mammoth === 'undefined') {
+        content.innerHTML = '<div class="error-msg" style="padding:20px">Бібліотека mammoth не завантажилась. Оновіть сторінку.</div>';
+        return;
+      }
+      var resp = await fetch(url);
+      if (!resp.ok) throw new Error('Не вдалося завантажити файл (' + resp.status + ')');
+      var buf = await resp.arrayBuffer();
+      var result = await mammoth.convertToHtml({ arrayBuffer: buf });
+      content.innerHTML = '<div class="docx-content">' + result.value + '</div>';
+      return;
+    }
+
+    // ── PDF → PDF.js canvas rendering ───────────────────────
+    if (ext === 'pdf') {
+      if (typeof pdfjsLib === 'undefined') {
+        content.innerHTML = '<div class="error-msg" style="padding:20px">PDF.js не завантажився. Оновіть сторінку.</div>';
+        return;
+      }
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+      content.innerHTML = '<div class="loading" style="padding:40px;text-align:center">⏳ Рендеринг сторінок...</div>';
+      var pdf = await pdfjsLib.getDocument({ url: url, withCredentials: false }).promise;
+      content.innerHTML = '';
+      for (var p = 1; p <= pdf.numPages; p++) {
+        var page = await pdf.getPage(p);
+        var viewport = page.getViewport({ scale: 1.5 });
+        var canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.className = 'pdf-page-canvas';
+        content.appendChild(canvas);
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+      }
+      return;
+    }
+
+    // ── XLSX / XLS → повідомлення ────────────────────────────
+    if (ext === 'xlsx' || ext === 'xls') {
+      content.innerHTML = '<div class="doc-info-msg">📊 Таблиця Excel<br><small>Перегляд таблиць у браузері не підтримується.<br>Зверніться до адміністратора.</small></div>';
+      return;
+    }
+
+    // ── PPTX / PPT → повідомлення ────────────────────────────
+    if (ext === 'pptx' || ext === 'ppt') {
+      content.innerHTML = '<div class="doc-info-msg">📑 Презентація PowerPoint<br><small>Перегляд презентацій у браузері не підтримується.<br>Зверніться до адміністратора.</small></div>';
+      return;
+    }
+
+    // ── Інші формати ─────────────────────────────────────────
+    content.innerHTML = '<div class="doc-info-msg">📎 ' + escHTML(filename || 'Файл') + '<br><small>Перегляд цього формату недоступний.</small></div>';
+
+  } catch(e) {
+    content.innerHTML = '<div class="error-msg" style="padding:20px">⚠️ ' + escHTML(e.message) + '</div>';
+  }
 }
 
 // ============================================================

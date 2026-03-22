@@ -151,7 +151,9 @@
       <button id="pdf-viewer-close" class="btn-icon">✖</button>
     </div>
     <div class="modal-body pdf-modal-body">
-      <iframe id="pdf-viewer-iframe" src="" frameborder="0"></iframe>
+      <div id="doc-viewer-content" class="doc-viewer-content">
+        <div class="loading" style="padding:40px;text-align:center">Завантаження документа...</div>
+      </div>
     </div>
   </dialog>
 
@@ -348,6 +350,10 @@
   </footer>
 
   <!-- App scripts (load order matters) -->
+  <!-- PDF.js for PDF rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Mammoth.js for DOCX rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script src="assets/js/config.js"></script>
   <script>
     window.supabase = supabase.createClient(
@@ -355,12 +361,12 @@
       window.APP_CONFIG.SUPABASE_ANON_KEY
     );
   </script>
-  <script src="assets/js/app.bundle.js?v=114"></script>
-  <script src="assets/js/auth.js?v=114"></script>
-  <script src="assets/js/cases.js?v=114"></script>
-  <script src="assets/js/admin.js?v=114"></script>
-  <script src="assets/js/files.js?v=114"></script>
-  <script src="assets/js/protect.js?v=114"></script>
+  <script src="assets/js/app.bundle.js?v=115"></script>
+  <script src="assets/js/auth.js?v=115"></script>
+  <script src="assets/js/cases.js?v=115"></script>
+  <script src="assets/js/admin.js?v=115"></script>
+  <script src="assets/js/files.js?v=115"></script>
+  <script src="assets/js/protect.js?v=115"></script>
 
 </body>
 </html>
