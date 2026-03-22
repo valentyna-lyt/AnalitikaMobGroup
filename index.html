@@ -295,40 +295,10 @@
 
     <!-- ===== GLASS SIDEBAR ===== -->
     <aside class="glass-sidebar">
-
-      <!-- Metric cards -->
-      <div class="metrics-row">
-        <div class="metric-card glass-card">
-          <div class="mc-icon">🏛️</div>
-          <div class="mc-value" id="mc-units">—</div>
-          <div class="mc-label">Підрозділи</div>
-        </div>
-        <div class="metric-card glass-card">
-          <div class="mc-icon">✅</div>
-          <div class="mc-value" id="mc-checks">—</div>
-          <div class="mc-label">Перевірок (рік)</div>
-        </div>
-      </div>
-
-      <!-- Last check date -->
-      <div class="metric-date-card glass-card">
-        <span class="mdc-label">Остання перевірка</span>
-        <span class="mdc-date" id="mc-last-date">—</span>
-      </div>
-
-      <!-- Top-5 -->
-      <div class="top5-card glass-card" style="flex:1; min-height:0">
-        <div class="top5-header">
-          <span class="top5-icon">🏆</span>
-          <p class="top5-title">Топ-5 підрозділів за кількістю перевірок</p>
-        </div>
-        <div id="top5-list" class="top5-list">
-          <div class="no-data">Завантаження...</div>
-        </div>
-      </div>
-
-      <!-- hidden canvas kept for compat -->
-      <canvas id="levelChart" style="display:none"></canvas>
+      <section id="kpi-box" class="kpi-box"></section>
+      <section class="chart-box">
+        <canvas id="levelChart"></canvas>
+      </section>
     </aside>
   </main>
 

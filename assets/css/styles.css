@@ -487,6 +487,17 @@ body {
 .leaflet-popup-content { color: #fff !important; font-size: 14px; }
 .popup strong { font-size: 15px; color: #fff; }
 
+/* Unit photo in popup */
+.unit-photo-wrap {
+  display: none;
+  margin-top: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 140px;
+}
+.unit-photo-wrap.show { display: block; }
+.unit-photo-wrap img { width: 100%; height: auto; display: block; }
+
 .btn-unit-info {
   margin-top: 10px;
   width: 100%;
@@ -780,6 +791,45 @@ button, input, select { font-family: inherit; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(30,144,255,0.3); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(30,144,255,0.5); }
+
+/* ============================================================
+   KPI BOX & CHART BOX (Sidebar content)
+   ============================================================ */
+.kpi-box {
+  padding: 20px 16px;
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+.chart-box {
+  flex: 1;
+  min-height: 0;
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+  padding: 8px;
+  position: relative;
+}
+
+.chart-box canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
 
 /* ============================================================
    RESPONSIVE
