@@ -66,31 +66,30 @@ async function getSignedUrl(storagePath) {
 // ============================================================
 
 async function renderUnitFiles(container, unitId, unitName) {
-  container.innerHTML = '<div class="loading" style="padding:32px;text-align:center">Завантаження...</div>';
-
-  var files = [];
-  try {
-    files = await loadUnitFiles(unitId);
-  } catch(e) {
-    container.innerHTML = '<div class="error-msg" style="padding:20px;text-align:center">⚠️ ' + escHTML(e.message) + '</div>';
-    return;
-  }
-
-  // Group files by section_name
+  // Show default sections IMMEDIATELY — no waiting for Supabase
+  var sectionNames = DEFAULT_SECTIONS.slice();
   var bySection = {};
-  files.forEach(function(f) {
-    var key = f.section_name || DEFAULT_SECTIONS[0];
-    if (!bySection[key]) bySection[key] = [];
-    bySection[key].push(f);
-  });
-
-  // Build section list: files sections + defaults (if not already in files)
-  var sectionNames = Object.keys(bySection);
-  DEFAULT_SECTIONS.forEach(function(s) {
-    if (sectionNames.indexOf(s) === -1) sectionNames.push(s);
-  });
+  DEFAULT_SECTIONS.forEach(function(s) { bySection[s] = null; }); // null = not yet loaded
 
   renderFolderGrid(container, sectionNames, bySection, unitId, unitName);
+
+  // Then try to load actual files in background to get counts
+  try {
+    var files = await loadUnitFiles(unitId);
+    var newBySection = {};
+    sectionNames.forEach(function(s) { newBySection[s] = []; });
+    files.forEach(function(f) {
+      var key = f.section_name || DEFAULT_SECTIONS[0];
+      if (!newBySection[key]) { newBySection[key] = []; sectionNames.push(key); }
+      newBySection[key].push(f);
+    });
+    // Re-render with actual counts (only if modal still open)
+    if (container.isConnected) {
+      renderFolderGrid(container, sectionNames, newBySection, unitId, unitName);
+    }
+  } catch(e) {
+    // Keep showing default sections, just without file counts
+  }
 }
 
 function renderFolderGrid(container, sectionNames, bySection, unitId, unitName) {
@@ -111,11 +110,12 @@ function renderFolderGrid(container, sectionNames, bySection, unitId, unitName) 
   // Folder grid
   html += '<div class="folders-grid" id="folders-grid">';
   sectionNames.forEach(function(secName) {
-    var count = (bySection[secName] || []).length;
+    var sf = bySection[secName];
+    var countLabel = sf === null ? '...' : fileCountLabel(sf.length);
     html += '<div class="folder-card" data-sec="' + escHTML(secName) + '">' +
       '<div class="folder-icon">📁</div>' +
       '<div class="folder-name">' + escHTML(secName) + '</div>' +
-      '<div class="folder-count">' + fileCountLabel(count) + '</div>' +
+      '<div class="folder-count">' + countLabel + '</div>' +
       '</div>';
   });
   html += '</div>';
@@ -135,13 +135,16 @@ function renderFolderGrid(container, sectionNames, bySection, unitId, unitName) 
 
   container.innerHTML = html;
 
-  // Render file cards per section
+  // Render file cards per section (skip null = not yet loaded)
   sectionNames.forEach(function(secName) {
     var panelId = 'sp-' + secName.replace(/[^\w]/g, '_');
     var grid = container.querySelector('#fg-' + panelId);
     if (!grid) return;
-    var sectionFiles = bySection[secName] || [];
-    if (!sectionFiles.length) {
+    var sectionFiles = bySection[secName];
+    if (sectionFiles === null) {
+      // Will be loaded on click
+      grid.innerHTML = '';
+    } else if (!sectionFiles.length) {
       grid.innerHTML = '<div class="no-data" style="padding:20px;text-align:center">Файлів немає' +
         (isAdmin() ? '<br><small>Натисніть "⬆ Завантажити" щоб додати</small>' : '') + '</div>';
     } else {
@@ -158,7 +161,30 @@ function renderFolderGrid(container, sectionNames, bySection, unitId, unitName) 
       container.querySelector('#folders-grid')?.classList.add('hidden');
       container.querySelectorAll('.sec-mgmt-bar,.add-section-form').forEach(function(el){ el.classList.add('hidden'); });
       container.querySelectorAll('.sec-files-panel').forEach(function(p){ p.classList.add('hidden'); });
-      container.querySelector('#' + panelId)?.classList.remove('hidden');
+      var panel = container.querySelector('#' + panelId);
+      if (!panel) return;
+      panel.classList.remove('hidden');
+
+      // Load files for this section if not yet loaded (bySection[sec] === null)
+      if (bySection[sec] === null) {
+        var grid = container.querySelector('#fg-' + panelId);
+        if (grid) {
+          grid.innerHTML = '<div class="loading" style="padding:20px;text-align:center">Завантаження...</div>';
+          loadUnitFiles(unitId).then(function(files) {
+            var secFiles = files.filter(function(f){ return (f.section_name || DEFAULT_SECTIONS[0]) === sec; });
+            bySection[sec] = secFiles;
+            if (!secFiles.length) {
+              grid.innerHTML = '<div class="no-data" style="padding:20px;text-align:center">Файлів немає' +
+                (isAdmin() ? '<br><small>Натисніть "⬆ Завантажити" щоб додати</small>' : '') + '</div>';
+            } else {
+              grid.innerHTML = secFiles.map(renderFileCard).join('');
+              bindFileCards(grid, unitId, unitName, container, bySection);
+            }
+          }).catch(function(e) {
+            if (grid) grid.innerHTML = '<div class="error-msg" style="padding:16px">⚠️ ' + escHTML(e.message) + '</div>';
+          });
+        }
+      }
     });
   });
 
