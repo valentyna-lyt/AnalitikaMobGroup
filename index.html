@@ -206,92 +206,135 @@
   </dialog>
 
 
-  <!-- ===== PAGE CONTENT ===== -->
-
-  <section id="hero-header" class="hero hero--brand">
-    <div class="hero-inner">
-      <img src="assets/img/emblem.png" alt="Емблема" class="hero-logo">
-      <h1 class="hero-agency u-upper">УПРАВЛІННЯ ГОЛОВНОЇ ІНСПЕКЦІЇ ГУНП В ХАРКІВСЬКІЙ ОБЛАСТІ</h1>
-      <h2 class="hero-project u-upper">АНАЛІТИКА РОБОТИ МОБІЛЬНИХ ГРУП</h2>
+  <!-- ===== GLASS HEADER ===== -->
+  <header class="glass-header">
+    <div class="gh-center">
+      <img src="assets/img/emblem.png" alt="Емблема" class="gh-emblem">
+      <div class="gh-titles">
+        <span class="gh-h1 metallic-text">УПРАВЛІННЯ ГОЛОВНОЇ ІНСПЕКЦІЇ ГУНП В ХАРКІВСЬКІЙ ОБЛАСТІ</span>
+        <span class="gh-h2 metallic-text">АНАЛІТИКА РОБОТИ МОБІЛЬНИХ ГРУП</span>
+      </div>
     </div>
-  </section>
-
-  <header class="app-header">
-    <div class="header-actions">
-      <button id="btn-theme" title="Перемкнути тему">🌓</button>
-      <button id="btn-mypos" title="Моє місце">📍 Моє місце</button>
-      <button id="btn-print" title="Експорт карти в PDF/друк">🖨️ Друк</button>
-      <button id="btn-settings" title="Налаштування підрозділів">⚙️ Налаштування</button>
-    </div>
-    <div class="user-info-row">
-      <span id="user-email" class="user-email"></span>
-      <button id="btn-admin" style="display:none" title="Адмін-панель">🔐 Адмін</button>
-      <button id="btn-logout" title="Вийти">🚪 Вийти</button>
+    <div class="gh-right">
+      <div class="gh-user">
+        <span id="user-email" class="user-email"></span>
+        <button id="btn-admin" style="display:none" class="glass-icon-btn accent-btn" title="Адмін-панель">🔐</button>
+        <button id="btn-logout" class="glass-icon-btn" title="Вийти">🚪</button>
+      </div>
+      <div class="gh-btns">
+        <button id="btn-theme" class="glass-icon-btn" title="Перемкнути тему">🌓</button>
+        <button id="btn-mypos" class="glass-icon-btn" title="Моє місце">📍</button>
+        <button id="btn-print" class="glass-icon-btn" title="Друк">🖨️</button>
+        <button id="btn-settings" class="glass-icon-btn" title="Налаштування">⚙️</button>
+      </div>
     </div>
   </header>
 
-  <main class="layout">
-    <div class="layout-map">
-      <div id="map"></div>
+  <!-- ===== CONTROLS BAR ===== -->
+  <div class="controls-bar">
+    <div class="cb-group">
+      <span class="cb-label">Джерело:</span>
+      <button id="btn-load-demo" class="cb-btn">Демо</button>
+      <label class="cb-btn" style="cursor:pointer">
+        <input type="file" id="file-input" accept=".csv,.json,.xlsx" style="display:none">
+        📁 Файл
+      </label>
+      <input type="text" id="url-input" class="cb-input" style="width:160px" placeholder="URL до CSV/JSON">
+      <button id="btn-load-url" class="cb-btn">↓ URL</button>
     </div>
-    <aside class="layout-side">
-      <section id="kpi-box" class="kpi-box"></section>
-      <section class="chart-box">
-        <canvas id="levelChart"></canvas>
-      </section>
-    </aside>
-  </main>
-
-  <section class="controls">
-    <div class="control-group">
-      <label>Джерело даних:</label>
-      <button id="btn-load-demo">Демо</button>
-      <input type="file" id="file-input" accept=".csv,.json,.xlsx" />
-      <input type="text" id="url-input" placeholder="Вставте URL до CSV/JSON (Google Sheet: ...output=csv)" />
-      <button id="btn-load-url">Завантажити URL</button>
+    <div class="cb-group">
+      <span class="cb-label">Період:</span>
+      <label class="cb-radio"><input type="radio" name="period" value="today" checked> Сьогодні</label>
+      <label class="cb-radio"><input type="radio" name="period" value="m30"> 30 днів</label>
+      <label class="cb-radio"><input type="radio" name="period" value="ytd"> Рік</label>
+      <span class="cb-label" style="margin-left:10px">Режим:</span>
+      <label class="cb-radio"><input type="radio" name="mapmode" value="points" checked> Точки</label>
+      <label class="cb-radio"><input type="radio" name="mapmode" value="clusters"> Кластери</label>
+      <label class="cb-radio"><input type="radio" name="mapmode" value="heat"> Тепло</label>
     </div>
-
-    <div class="control-group">
-      <label>Період:</label>
-      <label><input type="radio" name="period" value="today" checked> Сьогодні</label>
-      <label><input type="radio" name="period" value="m30"> 30 днів</label>
-      <label><input type="radio" name="period" value="ytd"> Рік</label>
-
-      <label class="ml">Режим карти:</label>
-      <label><input type="radio" name="mapmode" value="points" checked> Точки</label>
-      <label><input type="radio" name="mapmode" value="clusters"> Кластери</label>
-      <label><input type="radio" name="mapmode" value="heat"> Теплова</label>
-    </div>
-
-    <div class="control-group">
-      <label>Рівень:</label>
-      <select id="filter-level">
+    <div class="cb-group">
+      <span class="cb-label">Рівень:</span>
+      <select id="filter-level" class="cb-input" style="width:80px">
         <option value="">Всі</option>
         <option value="ГУНП">ГУНП</option>
         <option value="ХРУП">ХРУП</option>
         <option value="ВП">ВП</option>
         <option value="ВнП">ВнП</option>
       </select>
-
-      <label class="ml">Підпорядкування:</label>
-      <select id="filter-parent">
+      <span class="cb-label" style="margin-left:8px">Підп.:</span>
+      <select id="filter-parent" class="cb-input" style="width:100px">
         <option value="">Всі</option>
       </select>
+      <input type="search" id="search-name" class="cb-input" style="width:140px" placeholder="Пошук підрозділу...">
+    </div>
+    <div class="cb-group" style="margin-left:auto">
+      <span class="cb-label">Оновл. (хв):</span>
+      <input type="number" id="refresh-min" class="cb-input" min="0" max="1440" step="1" value="0">
+      <button id="btn-export-json" class="cb-btn">⬇ JSON</button>
+      <button id="btn-export-csv" class="cb-btn">⬇ CSV</button>
+    </div>
+  </div>
 
-      <label class="ml">Пошук:</label>
-      <input type="search" id="search-name" placeholder="Назва підрозділу...">
+  <!-- ===== MAIN AREA ===== -->
+  <main class="app-main">
+    <div class="map-wrapper">
+      <div id="map"></div>
+      <!-- Ukrainian trident watermark -->
+      <div class="trident-watermark" aria-hidden="true">
+        <svg viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M40 8 C40 8 30 22 30 38 C30 52 36 60 40 63 C44 60 50 52 50 38 C50 22 40 8 40 8Z"/>
+          <line x1="40" y1="63" x2="40" y2="92"/>
+          <line x1="22" y1="92" x2="58" y2="92"/>
+          <path d="M22 38 C12 38 8 48 8 58 C8 72 18 78 26 76"/>
+          <line x1="26" y1="76" x2="26" y2="92"/>
+          <path d="M58 38 C68 38 72 48 72 58 C72 72 62 78 54 76"/>
+          <line x1="54" y1="76" x2="54" y2="92"/>
+        </svg>
+      </div>
     </div>
 
-    <div class="control-group">
-      <label>Автооновлення (хв):</label>
-      <input type="number" id="refresh-min" min="0" max="1440" step="1" value="0">
-      <button id="btn-export-json">Експорт JSON</button>
-      <button id="btn-export-csv">Експорт CSV</button>
-    </div>
-  </section>
+    <!-- ===== GLASS SIDEBAR ===== -->
+    <aside class="glass-sidebar">
 
-  <footer class="app-footer">
-    <div>© 2025 • ГУНП в Харківській області</div>
+      <!-- Metric cards -->
+      <div class="metrics-row">
+        <div class="metric-card glass-card">
+          <div class="mc-icon">🏛️</div>
+          <div class="mc-value" id="mc-units">—</div>
+          <div class="mc-label">Підрозділи</div>
+        </div>
+        <div class="metric-card glass-card">
+          <div class="mc-icon">✅</div>
+          <div class="mc-value" id="mc-checks">—</div>
+          <div class="mc-label">Перевірок (рік)</div>
+        </div>
+      </div>
+
+      <!-- Last check date -->
+      <div class="metric-date-card glass-card">
+        <span class="mdc-label">Остання перевірка</span>
+        <span class="mdc-date" id="mc-last-date">—</span>
+      </div>
+
+      <!-- Top-5 -->
+      <div class="top5-card glass-card" style="flex:1; min-height:0">
+        <div class="top5-header">
+          <span class="top5-icon">🏆</span>
+          <p class="top5-title">Топ-5 підрозділів за кількістю перевірок</p>
+        </div>
+        <div id="top5-list" class="top5-list">
+          <div class="no-data">Завантаження...</div>
+        </div>
+      </div>
+
+      <!-- hidden canvas kept for compat -->
+      <canvas id="levelChart" style="display:none"></canvas>
+    </aside>
+  </main>
+
+  <!-- ===== GLASS FOOTER ===== -->
+  <footer class="glass-footer">
+    <span>© 2025 • ГУНП в Харківській області</span>
   </footer>
 
   <!-- App scripts (load order matters) -->
@@ -302,7 +345,7 @@
       window.APP_CONFIG.SUPABASE_ANON_KEY
     );
   </script>
-  <script src="assets/js/app.bundle.js?v=104"></script>
+  <script src="assets/js/app.bundle.js?v=105"></script>
   <script src="assets/js/auth.js"></script>
   <script src="assets/js/cases.js"></script>
   <script src="assets/js/admin.js"></script>

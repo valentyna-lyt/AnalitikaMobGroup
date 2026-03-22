@@ -261,9 +261,9 @@ let clusterLayer;
 function initMap(){
   map = L.map('map', { zoomControl: true });
   window.leaflet_map = map;
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors'
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
   }).addTo(map);
 
   fetch('data/kharkiv_bounds.geojson')
@@ -283,7 +283,7 @@ function initMap(){
   fetch('data/kharkiv_bounds.geojson')
     .then(r=>r.json())
     .then(gj=>{
-      L.geoJSON(gj, { style:{ color:'red', weight:2, fill:false } }).addTo(map);
+      L.geoJSON(gj, { style:{ color:'#e63946', weight:2.5, fill:false }, className:'boundary-pulse' }).addTo(map);
     })
     .catch(()=>{});
 
@@ -389,70 +389,49 @@ if (typeof window!=='undefined'){
 
 // ---- analytics.js ----
 function updateKPI(){
-  const el = document.getElementById('kpi-box');
-  if (!el) return;
-  el.style.color = 'white';
-  el.style.background = 'var(--card)';
-  el.style.padding = '16px 20px';
-  el.style.margin = '0 16px 12px';
-  el.style.borderRadius = '8px';
-  el.style.fontSize = '20px';
-  el.style.fontWeight = 'bold';
-  el.style.textAlign = 'center';
-  el.innerHTML = `Загальна кількість територіальних підрозділів - 42<br>
-  5 РУП, 4 РВП, 13 ВП, 11 ВнП, 8 СПД, 1 ВПД`;
+  const rows = filteredData();
+  const unitCount = rows.length;
+  const totalYtd = rows.reduce((s, d) => s + Number(d.ytd || 0), 0);
+
+  let lastDate = '';
+  for (const d of rows) {
+    if (d.last_check && d.last_check > lastDate) lastDate = d.last_check;
+  }
+
+  const mc = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  mc('mc-units', unitCount || '—');
+  mc('mc-checks', totalYtd || '—');
+  mc('mc-last-date', lastDate ? formatDate(lastDate) : '—');
 }
 
 
-// no-op to satisfy imports from main.js/settings.js
 function updateLevelChart(){
-  try{
-    var canvas = document.getElementById('levelChart');
-    if (!canvas) return;
-    var chartBox = canvas.parentElement;
-    if (window.state && state.loading){ if(chartBox){ chartBox.innerHTML = '<div class="skeleton chart-skeleton"></div>'; } return; }
-    if (!window.Chart) return;
-    if(chartBox){ chartBox.innerHTML = '<canvas id="levelChart"></canvas>'; canvas = chartBox.querySelector('#levelChart'); }
-    var rows = Array.isArray(state && state.data) ? state.data.slice() : [];
-    rows.sort(function(a,b){ return (Number(b.ytd||0) - Number(a.ytd||0)); });
-    var top = rows.slice(0, Math.min(5, rows.length));
-    var labels = top.map(function(r){
-      const name = r.name || '—';
-      if (name.includes('(')){
-        const base = name.substring(0, name.indexOf('(')).trim();
-        const extra = name.substring(name.indexOf('(')).trim();
-        return [base, extra];
-      }
-      return name;
-    });
-    var values = top.map(function(r){ return Number(r.ytd||0); });
-    if (window.__levelChart) { window.__levelChart.destroy(); }
-    window.__levelChart = new Chart(canvas.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{ 
-          label: 'К-сть перевірок за рік',
-          data: values,
-          backgroundColor: ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f'].slice(0, values.length)
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: { padding: { left: 20, right: 10, top: 10, bottom: 10 } },
-          plugins: {
-          legend: { display: false, labels: { color: (getComputedStyle(document.body).getPropertyValue('--text')||'#111').trim() } },
-          title: { display: true, text: 'Найбільша кількість перевірок', align:'center', color: (getComputedStyle(document.body).getPropertyValue('--text')||'#111').trim(), font:{size:18, weight:'bold'} }
-        },
-        scales: {
-          x: { ticks: { color: (getComputedStyle(document.body).getPropertyValue('--text')||'#111').trim() }, beginAtZero: true },
-          y: { ticks: { color: (getComputedStyle(document.body).getPropertyValue('--text')||'#111').trim(), align: 'end', crossAlign: 'center', autoSkip: false } }
-        }
-      }
-    });
-  }catch(err){ console.warn('updateLevelChart failed', err); }
+  const listEl = document.getElementById('top5-list');
+  if (!listEl) return;
+
+  const rows = Array.isArray(state && state.data) ? state.data.slice() : [];
+  rows.sort((a, b) => Number(b.ytd || 0) - Number(a.ytd || 0));
+  const top = rows.slice(0, 5);
+
+  if (!top.length) {
+    listEl.innerHTML = '<div class="no-data">Немає даних</div>';
+    return;
+  }
+
+  const maxVal = Number(top[0].ytd || 0) || 1;
+  const rankClasses = ['r1', 'r2', 'r3', 'r-other', 'r-other'];
+
+  listEl.innerHTML = top.map((r, i) => {
+    const val = Number(r.ytd || 0);
+    const pct = Math.round((val / maxVal) * 100);
+    const name = (r.name || '—').replace(/</g, '&lt;');
+    return `<div class="top5-item">
+      <span class="top5-rank ${rankClasses[i]}">${i + 1}</span>
+      <span class="top5-name">${name}</span>
+      <div class="top5-bar-wrap"><div class="top5-bar-fill" style="width:${pct}%"></div></div>
+      <span class="top5-count">${val}</span>
+    </div>`;
+  }).join('');
 }
 // ---- ui.js ----
 
@@ -475,6 +454,13 @@ function refreshParents(){
 
 function bindUI(){
   const q = (id)=>document.getElementById(id);
+
+  document.querySelectorAll('input[name="period"]').forEach(r=>{
+    r.addEventListener('change', e=>{
+      state.filters.period = e.target.value;
+      renderLayers(); updateKPI(); updateLevelChart();
+    });
+  });
 
   q('filter-level')?.addEventListener('change', e=>{
     state.filters.level = e.target.value || '';
