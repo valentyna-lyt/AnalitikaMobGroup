@@ -61,24 +61,49 @@ function renderCasesList(cases, unitId, unitName) {
 async function showUnitCasesModal(unitId, unitName) {
   if (!window.currentUser) { alert('Необхідно авторизуватись'); return; }
   const modal = document.getElementById('unit-cases-modal');
-  document.getElementById('unit-cases-title').textContent = `Кураторські справи: ${unitName}`;
-  document.getElementById('unit-cases-list').innerHTML = '<div class="loading">Завантаження...</div>';
+  document.getElementById('unit-cases-title').textContent = unitName;
   modal.dataset.unitId = unitId;
   modal.dataset.unitName = unitName;
 
-  const addBtn = document.getElementById('unit-cases-add-btn');
-  if (addBtn) addBtn.style.display = isAdmin() ? '' : 'none';
+  // Reset to cases tab
+  switchUnitModalTab('cases', unitId, unitName);
 
   modal.showModal();
-
-  try {
-    const cases = await loadCasesForUnit(unitId);
-    renderCasesList(cases, unitId, unitName);
-  } catch(err) {
-    document.getElementById('unit-cases-list').innerHTML = `<div class="error-msg">${escHTML(err.message)}</div>`;
-  }
 }
 window.showUnitCasesModal = showUnitCasesModal;
+
+function switchUnitModalTab(tab, unitId, unitName) {
+  const casesPanel = document.getElementById('unit-cases-panel');
+  const filesPanel = document.getElementById('unit-files-panel');
+  const tabCases   = document.getElementById('unit-tab-cases');
+  const tabFiles   = document.getElementById('unit-tab-files');
+  const addBtn     = document.getElementById('unit-cases-add-btn');
+
+  if (tab === 'cases') {
+    casesPanel.classList.remove('hidden');
+    filesPanel.classList.add('hidden');
+    tabCases.classList.add('active');
+    tabFiles.classList.remove('active');
+    if (addBtn) addBtn.style.display = isAdmin() ? '' : 'none';
+
+    document.getElementById('unit-cases-list').innerHTML = '<div class="loading">Завантаження...</div>';
+    loadCasesForUnit(unitId).then(cases => {
+      renderCasesList(cases, unitId, unitName);
+    }).catch(err => {
+      document.getElementById('unit-cases-list').innerHTML = `<div class="error-msg">${escHTML(err.message)}</div>`;
+    });
+  } else {
+    casesPanel.classList.add('hidden');
+    filesPanel.classList.remove('hidden');
+    tabCases.classList.remove('active');
+    tabFiles.classList.add('active');
+    if (addBtn) addBtn.style.display = 'none';
+
+    if (typeof window.loadAndRenderFilesTab === 'function') {
+      window.loadAndRenderFilesTab(unitId, unitName);
+    }
+  }
+}
 
 function showCaseEditForm(existing, unitId, unitName) {
   const modal = document.getElementById('case-edit-modal');
@@ -99,6 +124,16 @@ function bindCasesUI() {
     const btn = e.target.closest('.btn-unit-info');
     if (!btn) return;
     showUnitCasesModal(btn.dataset.unitId, btn.dataset.unitName);
+  });
+
+  // Tab switching
+  document.getElementById('unit-tab-cases')?.addEventListener('click', () => {
+    const modal = document.getElementById('unit-cases-modal');
+    switchUnitModalTab('cases', modal.dataset.unitId, modal.dataset.unitName);
+  });
+  document.getElementById('unit-tab-files')?.addEventListener('click', () => {
+    const modal = document.getElementById('unit-cases-modal');
+    switchUnitModalTab('files', modal.dataset.unitId, modal.dataset.unitName);
   });
 
   document.getElementById('unit-cases-add-btn')?.addEventListener('click', () => {

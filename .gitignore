@@ -1,0 +1,5 @@
+
+# Sensitive local data — never commit
+Дані/
+Дані тут/
+*.tmp

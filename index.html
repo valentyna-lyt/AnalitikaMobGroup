@@ -100,14 +100,23 @@
   <!-- /AUTH OVERLAY -->
 
 
-  <!-- ===== UNIT CASES MODAL ===== -->
+  <!-- ===== UNIT CASES+FILES MODAL ===== -->
   <dialog id="unit-cases-modal" class="app-modal wide-modal">
     <div class="modal-header">
-      <h3 id="unit-cases-title">Кураторські справи</h3>
+      <h3 id="unit-cases-title">Кураторська справа</h3>
       <button id="unit-cases-close" class="btn-icon">✖</button>
     </div>
-    <div class="modal-body">
+    <div class="unit-modal-tabs">
+      <button class="unit-tab active" id="unit-tab-cases">📋 Справи</button>
+      <button class="unit-tab" id="unit-tab-files">📁 Файли</button>
+    </div>
+    <!-- Cases panel -->
+    <div id="unit-cases-panel" class="modal-body">
       <div id="unit-cases-list"></div>
+    </div>
+    <!-- Files panel -->
+    <div id="unit-files-panel" class="modal-body hidden">
+      <div id="unit-files-tab-content"><div class="loading">Завантаження...</div></div>
     </div>
     <div class="modal-footer">
       <button id="unit-cases-add-btn" class="btn-primary" style="display:none; width:auto; padding:8px 20px">+ Додати справу</button>
@@ -146,6 +155,17 @@
     </form>
   </dialog>
 
+  <!-- ===== PDF VIEWER MODAL ===== -->
+  <dialog id="pdf-viewer-modal" class="app-modal pdf-modal">
+    <div class="modal-header">
+      <h3 id="pdf-viewer-title">Документ</h3>
+      <button id="pdf-viewer-close" class="btn-icon">✖</button>
+    </div>
+    <div class="modal-body pdf-modal-body">
+      <iframe id="pdf-viewer-iframe" src="" frameborder="0"></iframe>
+    </div>
+  </dialog>
+
   <!-- ===== ADMIN PANEL MODAL ===== -->
   <dialog id="admin-modal" class="app-modal full-modal">
     <div class="modal-header">
@@ -153,9 +173,12 @@
       <button id="admin-close" class="btn-icon">✖</button>
     </div>
     <div class="admin-tabs">
-      <button class="tab-btn active">Кураторські справи</button>
+      <button class="tab-btn active" id="admin-tab-cases">📋 Кураторські справи</button>
+      <button class="tab-btn" id="admin-tab-files">📁 Файли підрозділів</button>
     </div>
-    <div class="modal-body">
+
+    <!-- Cases panel -->
+    <div id="admin-cases-panel" class="modal-body">
       <div class="admin-toolbar">
         <span id="admin-total-count"></span>
       </div>
@@ -173,6 +196,34 @@
           <tbody id="admin-cases-tbody"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- Files panel -->
+    <div id="admin-files-panel" class="modal-body" style="display:none">
+      <div class="admin-upload-section">
+        <div class="form-group">
+          <label>Підрозділ</label>
+          <select id="admin-upload-unit-sel" class="form-control">
+            <option value="">— оберіть підрозділ —</option>
+          </select>
+        </div>
+        <div class="upload-zone">
+          <span class="upload-zone-icon">📁</span>
+          <p class="upload-zone-text">Оберіть папку підрозділу з розділами</p>
+          <small class="upload-zone-hint">Папка повинна містити підпапки: "1 Загальна інформація...", "2 Характеристика..." тощо</small>
+          <label class="btn-primary upload-zone-btn">
+            <input type="file" id="admin-folder-input" webkitdirectory multiple style="display:none">
+            Обрати папку
+          </label>
+        </div>
+        <div id="admin-upload-progress" style="display:none; margin-top:12px">
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" id="admin-progress-fill"></div>
+          </div>
+          <div id="admin-progress-text" class="progress-text"></div>
+        </div>
+      </div>
+      <div id="admin-files-list" style="margin-top:8px"></div>
     </div>
   </dialog>
 
@@ -319,6 +370,7 @@
   <script src="assets/js/auth.js"></script>
   <script src="assets/js/cases.js"></script>
   <script src="assets/js/admin.js"></script>
+  <script src="assets/js/files.js"></script>
 
 </body>
 </html>
