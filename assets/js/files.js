@@ -241,6 +241,26 @@ async function deleteUnitFile(fileId, unitId, unitName, container) {
 // ADMIN UPLOAD
 // ============================================================
 
+// Maps Ukrainian folder names (without number prefix) to section numbers
+const SECTION_FOLDER_MAP = [
+  { num: 1, keys: ['загальна інформація', 'загальна інфо'] },
+  { num: 2, keys: ['характеристика району', 'район', 'карта'] },
+  { num: 3, keys: ['особовий склад', 'особовий', 'склад'] },
+  { num: 4, keys: ['діяльність підрозділу', 'діяльність', 'накази', 'доручення', 'надзвичайні', 'назвичайні', 'службовий транспорт', 'службовий тарнспорт'] },
+  { num: 5, keys: ['пог підрозділ', 'пог'] },
+  { num: 6, keys: ['блокпости', 'блокпост'] },
+  { num: 7, keys: ['відряджені', 'відряджен'] },
+  { num: 8, keys: ['блекаут', 'відключення', 'готовність', 'робота під час'] },
+];
+
+function detectSectionByName(folderName) {
+  const lower = folderName.toLowerCase().trim();
+  for (const sec of SECTION_FOLDER_MAP) {
+    if (sec.keys.some(k => lower.includes(k))) return sec.num;
+  }
+  return 0;
+}
+
 async function adminUploadFolder(fileList, unitId, unitName, onProgress) {
   const files = Array.from(fileList).filter(f =>
     !f.name.startsWith('.') && !f.name.endsWith('.tmp') && f.size > 0
@@ -256,12 +276,25 @@ async function adminUploadFolder(fileList, unitId, unitName, onProgress) {
       let sectionNum  = 0;
       let fileSubPath = file.name;
 
+      // 1. Try numeric prefix: "1 Назва", "2_Назва", "3-Назва"
       for (let i = 0; i < parts.length - 1; i++) {
         const m = parts[i].match(/^([1-8])[\s_\-\.]/);
         if (m) {
           sectionNum  = parseInt(m[1]);
           fileSubPath = parts.slice(i + 1).join('/');
           break;
+        }
+      }
+
+      // 2. If not found — try matching folder name by keywords
+      if (!sectionNum) {
+        for (let i = 0; i < parts.length - 1; i++) {
+          const sec = detectSectionByName(parts[i]);
+          if (sec) {
+            sectionNum  = sec;
+            fileSubPath = parts.slice(i + 1).join('/');
+            break;
+          }
         }
       }
 

@@ -2,4 +2,5 @@
 # Sensitive local data — never commit
 Дані/
 Дані тут/
+ХРУП*/
 *.tmp
