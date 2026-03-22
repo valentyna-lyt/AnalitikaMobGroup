@@ -895,3 +895,61 @@ body.theme-light, body.theme-light * { color: var(--text) !important; }
 }
 .folder-card:hover .btn-del-section { opacity: 0.7; }
 .btn-del-section:hover { opacity: 1 !important; }
+
+/* ══════════════════════════════════════════
+   DOCUMENT PROTECTION
+══════════════════════════════════════════ */
+
+/* Watermark overlay */
+.doc-watermark {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  pointer-events: none;
+  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 40px 20px;
+  padding: 40px;
+  transform: rotate(-30deg) scale(1.4);
+  transform-origin: center center;
+  user-select: none;
+}
+
+.doc-watermark span {
+  display: block;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
+  font-family: Arial, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Disable text selection in viewers */
+#img-viewer-modal,
+#pdf-viewer-modal {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#img-viewer-modal img {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+/* Hide everything when printing */
+@media print {
+  body * {
+    display: none !important;
+  }
+  body::after {
+    display: block !important;
+    content: 'Друк документів заборонено.';
+    font-size: 24px;
+    text-align: center;
+    margin-top: 40px;
+  }
+}

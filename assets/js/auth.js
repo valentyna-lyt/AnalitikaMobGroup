@@ -45,6 +45,9 @@ async function handleSignIn(user) {
   document.getElementById('btn-logout') && (document.getElementById('btn-logout').style.display = '');
   hideAuthOverlay();
 
+  // Notify protect.js that user is signed in (for watermark update)
+  document.dispatchEvent(new CustomEvent('userSignedIn'));
+
   // Re-render open unit modal with correct admin state
   const modal = document.getElementById('unit-cases-modal');
   if (modal && modal.open && typeof window.loadAndRenderFilesTab === 'function') {
