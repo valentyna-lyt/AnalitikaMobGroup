@@ -106,21 +106,10 @@
       <h3 id="unit-cases-title">Кураторська справа</h3>
       <button id="unit-cases-close" class="btn-icon">✖</button>
     </div>
-    <div class="unit-modal-tabs">
-      <button class="unit-tab active" id="unit-tab-files">📁 Відомості</button>
-      <button class="unit-tab" id="unit-tab-cases">📋 Кураторські справи</button>
+    <div id="unit-files-tab-content" class="modal-body" style="min-height:320px">
+      <div class="loading">Завантаження...</div>
     </div>
-    <!-- Files panel (default) -->
-    <div id="unit-files-panel" class="modal-body">
-      <div id="unit-files-tab-content"><div class="loading">Завантаження...</div></div>
-    </div>
-    <!-- Cases panel -->
-    <div id="unit-cases-panel" class="modal-body hidden">
-      <div id="unit-cases-list"></div>
-    </div>
-    <div class="modal-footer">
-      <button id="unit-cases-add-btn" class="btn-primary" style="display:none; width:auto; padding:8px 20px">+ Додати справу</button>
-    </div>
+    <input type="file" id="unit-section-file-input" multiple style="display:none">
   </dialog>
 
   <!-- ===== CASE EDIT MODAL ===== -->
@@ -365,11 +354,11 @@
       window.APP_CONFIG.SUPABASE_ANON_KEY
     );
   </script>
-  <script src="assets/js/app.bundle.js?v=108"></script>
-  <script src="assets/js/auth.js?v=108"></script>
-  <script src="assets/js/cases.js?v=108"></script>
-  <script src="assets/js/admin.js?v=108"></script>
-  <script src="assets/js/files.js?v=108"></script>
+  <script src="assets/js/app.bundle.js?v=109"></script>
+  <script src="assets/js/auth.js?v=109"></script>
+  <script src="assets/js/cases.js?v=109"></script>
+  <script src="assets/js/admin.js?v=109"></script>
+  <script src="assets/js/files.js?v=109"></script>
 
 </body>
 </html>
