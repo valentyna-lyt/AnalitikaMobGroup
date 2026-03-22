@@ -6,11 +6,15 @@ function escHTML(s) {
 }
 
 async function loadCasesForUnit(unitId) {
-  const { data, error } = await window.supabase
+  const promise = window.supabase
     .from('unit_cases')
     .select('*')
     .eq('unit_id', unitId)
     .order('case_date', { ascending: false });
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Timeout: не вдалося завантажити (8с)')), 8000)
+  );
+  const { data, error } = await Promise.race([promise, timeout]);
   if (error) throw error;
   return data || [];
 }
