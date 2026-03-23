@@ -1,5 +1,5 @@
 // ---- auth.js ----
-// Authentication via Supabase Auth
+// Authentication via local API (JWT)
 
 window.currentUser = null;
 window.userProfile = null;
@@ -17,39 +17,33 @@ function hideAuthOverlay() {
 }
 
 function showAuthMode(mode) {
-  ['login', 'forgot', 'reset-password'].forEach(m => {
-    const el = document.getElementById('auth-' + m);
+  ['login', 'change-password'].forEach(function(m) {
+    var el = document.getElementById('auth-' + m);
     if (el) el.style.display = m === mode ? 'flex' : 'none';
   });
 }
 
-async function handleSignIn(user) {
+function handleSignIn(user) {
   window.currentUser = user;
-  try {
-    const profilePromise = window.supabase
-      .from('profiles').select('role, full_name').eq('id', user.id).single();
-    const timeout = new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 6000));
-    const { data } = await Promise.race([profilePromise, timeout]);
-    window.userProfile = data || { role: 'viewer' };
-  } catch {
-    window.userProfile = { role: 'viewer' };
-  }
+  window.userProfile = { role: user.role, full_name: user.full_name };
 
-  const emailEl = document.getElementById('user-email');
+  var emailEl = document.getElementById('user-email');
   if (emailEl) emailEl.textContent = user.email;
 
-  const adminBtn = document.getElementById('btn-admin');
+  var adminBtn = document.getElementById('btn-admin');
   if (adminBtn) adminBtn.style.display = isAdmin() ? '' : 'none';
 
-  document.getElementById('btn-login')?.style && (document.getElementById('btn-login').style.display = 'none');
-  document.getElementById('btn-logout') && (document.getElementById('btn-logout').style.display = '');
+  var loginBtn = document.getElementById('btn-login');
+  if (loginBtn) loginBtn.style.display = 'none';
+  var logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) logoutBtn.style.display = '';
+
   hideAuthOverlay();
 
-  // Notify protect.js that user is signed in (for watermark update)
   document.dispatchEvent(new CustomEvent('userSignedIn'));
 
   // Re-render open unit modal with correct admin state
-  const modal = document.getElementById('unit-cases-modal');
+  var modal = document.getElementById('unit-cases-modal');
   if (modal && modal.open && typeof window.loadAndRenderFilesTab === 'function') {
     window.loadAndRenderFilesTab(modal.dataset.unitId, modal.dataset.unitName);
   }
@@ -58,34 +52,40 @@ async function handleSignIn(user) {
 function handleSignOut() {
   window.currentUser = null;
   window.userProfile = null;
-  const emailEl = document.getElementById('user-email');
+  window.localAPI.setToken(null);
+
+  var emailEl = document.getElementById('user-email');
   if (emailEl) emailEl.textContent = '';
-  document.getElementById('btn-admin')?.style && (document.getElementById('btn-admin').style.display = 'none');
-  document.getElementById('btn-login')?.style && (document.getElementById('btn-login').style.display = '');
-  document.getElementById('btn-logout')?.style && (document.getElementById('btn-logout').style.display = 'none');
+
+  var adminBtn = document.getElementById('btn-admin');
+  if (adminBtn) adminBtn.style.display = 'none';
+  var loginBtn = document.getElementById('btn-login');
+  if (loginBtn) loginBtn.style.display = '';
+  var logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) logoutBtn.style.display = 'none';
+
   showAuthOverlay();
   showAuthMode('login');
 }
 
 async function initAuth() {
   // Initially hide logout, show login until session is confirmed
-  document.getElementById('btn-logout')?.style && (document.getElementById('btn-logout').style.display = 'none');
-  document.getElementById('btn-login')?.style && (document.getElementById('btn-login').style.display = '');
+  var logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) logoutBtn.style.display = 'none';
+  var loginBtn = document.getElementById('btn-login');
+  if (loginBtn) loginBtn.style.display = '';
 
-  window.supabase.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-      await handleSignIn(session.user);
-    } else if (event === 'SIGNED_OUT') {
-      handleSignOut();
-    } else if (event === 'PASSWORD_RECOVERY') {
-      showAuthMode('reset-password');
+  var token = window.localAPI.getToken();
+  if (token) {
+    try {
+      var data = await window.localAPI.fetch('/auth/me');
+      handleSignIn(data.user);
+    } catch (e) {
+      // Token invalid or expired
+      window.localAPI.setToken(null);
       showAuthOverlay();
+      showAuthMode('login');
     }
-  });
-
-  const { data: { session } } = await window.supabase.auth.getSession();
-  if (session) {
-    await handleSignIn(session.user);
   } else {
     showAuthOverlay();
     showAuthMode('login');
@@ -94,87 +94,79 @@ async function initAuth() {
 
 function bindAuthUI() {
   // --- Login ---
-  document.getElementById('auth-login-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const email = document.getElementById('login-email').value;
-    const pwd = document.getElementById('login-password').value;
-    const errEl = document.getElementById('login-error');
-    const btn = e.target.querySelector('[type=submit]');
-    btn.disabled = true; btn.textContent = 'Вхід...'; errEl.textContent = '';
+  var loginForm = document.getElementById('auth-login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var email = document.getElementById('login-email').value;
+      var pwd = document.getElementById('login-password').value;
+      var errEl = document.getElementById('login-error');
+      var btn = e.target.querySelector('[type=submit]');
+      btn.disabled = true; btn.textContent = 'Вхід...'; errEl.textContent = '';
 
-    const { error } = await window.supabase.auth.signInWithPassword({ email, password: pwd });
-    if (error) {
-      errEl.textContent = error.message === 'Invalid login credentials'
-        ? 'Невірний email або пароль' : error.message;
-      btn.disabled = false; btn.textContent = 'Увійти';
-    }
-  });
-
-  document.getElementById('link-forgot')?.addEventListener('click', e => {
-    e.preventDefault(); showAuthMode('forgot');
-  });
-  document.getElementById('link-back-login')?.addEventListener('click', e => {
-    e.preventDefault(); showAuthMode('login');
-  });
-
-  // --- Forgot password ---
-  document.getElementById('auth-forgot-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const email = document.getElementById('forgot-email').value;
-    const errEl = document.getElementById('forgot-error');
-    const msgEl = document.getElementById('forgot-msg');
-    const btn = e.target.querySelector('[type=submit]');
-    btn.disabled = true; errEl.textContent = ''; msgEl.textContent = '';
-
-    const { error } = await window.supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + window.location.pathname
+      try {
+        var data = await window.localAPI.fetch('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email: email, password: pwd })
+        });
+        window.localAPI.setToken(data.token);
+        handleSignIn(data.user);
+      } catch (err) {
+        errEl.textContent = err.message || 'Помилка входу';
+        btn.disabled = false; btn.textContent = 'Увійти';
+      }
     });
-    if (error) {
-      errEl.textContent = error.message;
-    } else {
-      msgEl.textContent = 'Лист для відновлення пароля надіслано. Перевірте вхідні.';
-    }
-    btn.disabled = false;
-  });
+  }
 
-  // --- Reset password ---
-  document.getElementById('auth-reset-password-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const newPwd = document.getElementById('new-password').value;
-    const confirmPwd = document.getElementById('confirm-password').value;
-    const errEl = document.getElementById('reset-error');
-    const btn = e.target.querySelector('[type=submit]');
-
-    if (newPwd !== confirmPwd) { errEl.textContent = 'Паролі не збігаються'; return; }
-    if (newPwd.length < 6) { errEl.textContent = 'Мінімум 6 символів'; return; }
-
-    btn.disabled = true; btn.textContent = 'Збереження...'; errEl.textContent = '';
-
-    const { error } = await window.supabase.auth.updateUser({ password: newPwd });
-    if (error) {
-      errEl.textContent = error.message;
-      btn.disabled = false; btn.textContent = 'Зберегти пароль';
-    } else {
-      window.history.replaceState(null, '', window.location.pathname);
-      hideAuthOverlay();
-    }
-  });
+  // --- Change password (replaces forgot/reset) ---
+  var changePwdForm = document.getElementById('auth-change-password-form');
+  if (changePwdForm) {
+    changePwdForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var newPwd = document.getElementById('new-password').value;
+      var confirmPwd = document.getElementById('confirm-password').value;
+      var errEl = document.getElementById('reset-error');
+      var btn = e.target.querySelector('[type=submit]');
+      if (newPwd !== confirmPwd) { errEl.textContent = 'Паролі не збігаються'; return; }
+      if (newPwd.length < 6) { errEl.textContent = 'Мінімум 6 символів'; return; }
+      btn.disabled = true; btn.textContent = 'Збереження...'; errEl.textContent = '';
+      try {
+        await window.localAPI.fetch('/auth/change-password', {
+          method: 'POST',
+          body: JSON.stringify({ new_password: newPwd })
+        });
+        hideAuthOverlay();
+      } catch (err) {
+        errEl.textContent = err.message;
+        btn.disabled = false; btn.textContent = 'Зберегти пароль';
+      }
+    });
+  }
 
   // --- Login button (header) ---
-  document.getElementById('btn-login')?.addEventListener('click', () => {
-    showAuthOverlay();
-    showAuthMode('login');
-  });
+  var loginHeaderBtn = document.getElementById('btn-login');
+  if (loginHeaderBtn) {
+    loginHeaderBtn.addEventListener('click', function() {
+      showAuthOverlay();
+      showAuthMode('login');
+    });
+  }
 
   // --- Logout ---
-  document.getElementById('btn-logout')?.addEventListener('click', async () => {
-    await window.supabase.auth.signOut();
-  });
+  var logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function() {
+      handleSignOut();
+    });
+  }
 
   // --- Admin panel ---
-  document.getElementById('btn-admin')?.addEventListener('click', () => {
-    if (typeof openAdminPanel === 'function') openAdminPanel();
-  });
+  var adminBtn = document.getElementById('btn-admin');
+  if (adminBtn) {
+    adminBtn.addEventListener('click', function() {
+      if (typeof openAdminPanel === 'function') openAdminPanel();
+    });
+  }
 }
 
 bindAuthUI();

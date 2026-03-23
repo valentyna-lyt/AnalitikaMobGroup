@@ -1,25 +1,14 @@
 // ---- files.js ----
 // Unit files viewer + admin uploader
-// Uses ONLY unit_files table (no unit_sections required)
+// Uses local API (/api/files, /api/view)
 
-// Default sections shown for any unit (match ХРУП 1 folder names)
-var DEFAULT_SECTIONS = [
+window.DEFAULT_SECTIONS = [
   'Загальна інформація про підрозділ',
   'Інформація щодо особового складу',
   'Інформація щодо діяльності підрозділу',
   'Характеристика району обслуговування',
   'Робота під час блекауту'
 ];
-
-// ---- Safe storage path (UUID-based, Supabase doesn't allow Cyrillic) ----
-// Original filename/section are stored in DB for display; storage uses safe ASCII paths
-function makeSafeStoragePath(unitId, sectionIndex, filename) {
-  var ext = '';
-  var dot = filename.lastIndexOf('.');
-  if (dot > 0) ext = filename.slice(dot).toLowerCase().replace(/[^a-z0-9.]/g, '');
-  var uid = Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
-  return String(unitId) + '/s' + sectionIndex + '/' + uid + ext;
-}
 
 // ---- File type helpers ----
 function isImage(name) { return /\.(jpe?g|png|gif|webp|bmp|tiff?)$/i.test(name); }
@@ -42,33 +31,25 @@ function fileCountLabel(n) {
   return n + ' файлів';
 }
 
-// ---- Supabase helpers ----
-function sbQuery(queryPromise) {
-  return Promise.race([
-    queryPromise,
-    new Promise(function(_, reject) {
-      setTimeout(function() { reject(new Error('Timeout: немає відповіді від сервера')); }, 8000);
-    })
-  ]);
-}
-
+// ---- API helpers ----
 async function loadUnitFiles(unitId) {
-  var res = await sbQuery(
-    window.supabase.from('unit_files').select('*')
-      .eq('unit_id', String(unitId))
-      .order('section_name').order('filename')
-  );
-  if (res.error) throw res.error;
-  return res.data || [];
+  return window.localAPI.fetch('/files/' + encodeURIComponent(unitId));
 }
 
-async function getSignedUrl(storagePath) {
+// Fetch file blob and return object URL (for authenticated access)
+var _blobCache = {};
+async function getBlobUrl(storagePath) {
+  if (_blobCache[storagePath]) return _blobCache[storagePath];
   try {
-    var res = await sbQuery(
-      window.supabase.storage.from('unit-files').createSignedUrl(storagePath, 3600)
-    );
-    return res.data?.signedUrl || '';
+    var blob = await window.localAPI.getBlob('/view/' + storagePath);
+    var url = URL.createObjectURL(blob);
+    _blobCache[storagePath] = url;
+    return url;
   } catch(e) { return ''; }
+}
+
+function escHTML(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ============================================================
@@ -76,14 +57,12 @@ async function getSignedUrl(storagePath) {
 // ============================================================
 
 async function renderUnitFiles(container, unitId, unitName) {
-  // Show default sections IMMEDIATELY — no waiting for Supabase
   var sectionNames = DEFAULT_SECTIONS.slice();
   var bySection = {};
-  DEFAULT_SECTIONS.forEach(function(s) { bySection[s] = null; }); // null = not yet loaded
+  DEFAULT_SECTIONS.forEach(function(s) { bySection[s] = null; });
 
   renderFolderGrid(container, sectionNames, bySection, unitId, unitName);
 
-  // Then try to load actual files in background to get counts
   try {
     var files = await loadUnitFiles(unitId);
     var newBySection = {};
@@ -93,19 +72,17 @@ async function renderUnitFiles(container, unitId, unitName) {
       if (!newBySection[key]) { newBySection[key] = []; sectionNames.push(key); }
       newBySection[key].push(f);
     });
-    // Re-render with actual counts (only if modal still open)
     if (container.isConnected) {
       renderFolderGrid(container, sectionNames, newBySection, unitId, unitName);
     }
   } catch(e) {
-    // Keep showing default sections, just without file counts
+    // Keep showing default sections
   }
 }
 
 function renderFolderGrid(container, sectionNames, bySection, unitId, unitName) {
   var html = '';
 
-  // Admin: add section button
   if (isAdmin()) {
     html += '<div class="sec-mgmt-bar">' +
       '<button class="btn-sm btn-add-section">+ Додати розділ</button>' +
@@ -117,7 +94,6 @@ function renderFolderGrid(container, sectionNames, bySection, unitId, unitName) 
       '</div>';
   }
 
-  // Folder grid
   html += '<div class="folders-grid" id="folders-grid">';
   sectionNames.forEach(function(secName) {
     var sf = bySection[secName];
@@ -130,7 +106,6 @@ function renderFolderGrid(container, sectionNames, bySection, unitId, unitName) 
   });
   html += '</div>';
 
-  // File panels (one per section, hidden)
   sectionNames.forEach(function(secName) {
     var panelId = 'sp-' + secName.replace(/[^\w]/g, '_');
     html += '<div class="sec-files-panel hidden" id="' + escHTML(panelId) + '" data-sec="' + escHTML(secName) + '">' +
@@ -145,14 +120,12 @@ function renderFolderGrid(container, sectionNames, bySection, unitId, unitName) 
 
   container.innerHTML = html;
 
-  // Render file cards per section (skip null = not yet loaded)
   sectionNames.forEach(function(secName) {
     var panelId = 'sp-' + secName.replace(/[^\w]/g, '_');
     var grid = container.querySelector('#fg-' + panelId);
     if (!grid) return;
     var sectionFiles = bySection[secName];
     if (sectionFiles === null) {
-      // Will be loaded on click
       grid.innerHTML = '';
     } else if (!sectionFiles.length) {
       grid.innerHTML = '<div class="no-data" style="padding:20px;text-align:center">Файлів немає' +
@@ -175,7 +148,6 @@ function renderFolderGrid(container, sectionNames, bySection, unitId, unitName) 
       if (!panel) return;
       panel.classList.remove('hidden');
 
-      // Load files for this section if not yet loaded (bySection[sec] === null)
       if (bySection[sec] === null) {
         var grid = container.querySelector('#fg-' + panelId);
         if (grid) {
@@ -228,22 +200,24 @@ function renderFolderGrid(container, sectionNames, bySection, unitId, unitName) 
       if (f) f.classList.add('hidden');
     });
 
-    // Per-section upload button
     container.querySelectorAll('.sec-upload-btn').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
         var sec = btn.dataset.sec;
-        // Try modal input first, fallback to admin input
-        var inp = document.getElementById('unit-section-file-input') ||
-                  document.getElementById('admin-section-file-input');
-        if (!inp) return;
-        inp.dataset.sec = sec;
-        inp.dataset.unitId = String(unitId);
-        inp.dataset.unitName = unitName || '';
-        inp._container = container;
-        inp._bySection = bySection;
-        inp._sectionNames = sectionNames;
-        inp.value = '';
+        var inp = document.createElement('input');
+        inp.type = 'file';
+        inp.multiple = true;
+        inp.style.display = 'none';
+        document.body.appendChild(inp);
+        inp.addEventListener('change', async function() {
+          if (!inp.files?.length) { document.body.removeChild(inp); return; }
+          var errors = await adminUploadFilesToSection(inp.files, unitId, unitName, sec, null);
+          document.body.removeChild(inp);
+          _blobCache = {};
+          await renderUnitFiles(container, unitId, unitName);
+          if (typeof refreshAdminFilesList === 'function') refreshAdminFilesList(unitId);
+          if (errors.length) alert('Помилки:\n' + errors.slice(0,3).join('\n'));
+        });
         inp.click();
       });
     });
@@ -280,15 +254,17 @@ function renderFileCard(f) {
       '<div class="file-card-name">' + safe + '</div>' + del + '</div>';
   }
   return '<div class="file-card">' +
-    '<a class="file-icon-link" data-sp="' + sp + '" href="#" download="' + safe + '">' +
+    '<a class="file-icon-link" data-sp="' + sp + '" href="#" data-download="' + safe + '">' +
     '<span class="file-big-icon">' + fileIcon(f.filename) + '</span></a>' +
     '<div class="file-card-name">' + safe + '</div>' + del + '</div>';
 }
 
 function bindFileCards(grid, unitId, unitName, container, bySection) {
   grid.querySelectorAll('[data-sp]').forEach(async function(el) {
-    var url = await getSignedUrl(el.dataset.sp);
+    var sp = el.dataset.sp;
+    var url = await getBlobUrl(sp);
     if (!url) return;
+
     if (el.tagName === 'IMG') {
       el.src = url;
       el.style.cursor = 'zoom-in';
@@ -296,13 +272,24 @@ function bindFileCards(grid, unitId, unitName, container, bySection) {
       var ov = el.closest('.file-thumb-wrap')?.querySelector('.file-overlay');
       if (ov) ov.addEventListener('click', function() { openImgViewer(url, el.alt); });
     } else if (el.dataset.pdf) {
-      el.href = url;
-      el.addEventListener('click', function(e) { e.preventDefault(); openPDFViewer(url, el.dataset.name); });
+      el.href = '#';
+      el.addEventListener('click', function(e) { e.preventDefault(); openDocViewer(url, el.dataset.name, sp); });
     } else if (el.dataset.office) {
       el.href = '#';
-      el.addEventListener('click', function(e) { e.preventDefault(); openPDFViewer(url, el.dataset.name); });
-    } else {
-      el.href = url;
+      el.addEventListener('click', function(e) { e.preventDefault(); openDocViewer(url, el.dataset.name, sp); });
+    } else if (el.dataset.download) {
+      // Download link - fetch blob and trigger download
+      el.addEventListener('click', async function(e) {
+        e.preventDefault();
+        try {
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = el.dataset.download;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } catch(err) {}
+      });
     }
   });
 
@@ -318,46 +305,54 @@ function bindFileCards(grid, unitId, unitName, container, bySection) {
 // ============================================================
 
 function openImgViewer(url, title) {
-  var modal = document.getElementById('img-viewer-modal');
-  if (!modal) { return; }
-  var t = document.getElementById('img-viewer-title');
-  var i = document.getElementById('img-viewer-img');
-  if (t) t.textContent = title || '';
-  if (i) i.src = url;
-  modal.showModal();
+  var overlay = document.getElementById('doc-viewer-overlay');
+  var titleEl = document.getElementById('dv-title');
+  var content = document.getElementById('dv-content');
+  if (!overlay || !content) return;
+  if (titleEl) titleEl.textContent = title || '';
+  content.innerHTML = '<img src="' + url + '" alt="' + escHTML(title||'') + '" class="dv-img">';
+  overlay.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
 }
 
 // ============================================================
 // DOCUMENT VIEWER (PDF.js + mammoth.js)
 // ============================================================
 
-async function openPDFViewer(url, filename) {
-  var modal = document.getElementById('pdf-viewer-modal');
-  if (!modal) return;
-  var titleEl = document.getElementById('pdf-viewer-title');
-  var content = document.getElementById('doc-viewer-content');
+function closeDocViewer() {
+  var overlay = document.getElementById('doc-viewer-overlay');
+  if (overlay) overlay.classList.add('hidden');
+  document.body.style.overflow = '';
+  var content = document.getElementById('dv-content');
+  if (content) content.innerHTML = '';
+}
+
+async function openDocViewer(blobUrl, filename, storagePath) {
+  var overlay = document.getElementById('doc-viewer-overlay');
+  var titleEl = document.getElementById('dv-title');
+  var content = document.getElementById('dv-content');
+  if (!overlay || !content) return;
   if (titleEl) titleEl.textContent = filename || 'Документ';
   content.innerHTML = '<div class="loading" style="padding:40px;text-align:center">⏳ Завантаження...</div>';
-  modal.showModal();
+  overlay.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
 
   try {
     var ext = (filename || '').split('.').pop().toLowerCase();
 
-    // ── DOCX / DOC → mammoth.js ──────────────────────────────
     if (ext === 'docx' || ext === 'doc') {
       if (typeof mammoth === 'undefined') {
         content.innerHTML = '<div class="error-msg" style="padding:20px">Бібліотека mammoth не завантажилась. Оновіть сторінку.</div>';
         return;
       }
-      var resp = await fetch(url);
-      if (!resp.ok) throw new Error('Не вдалося завантажити файл (' + resp.status + ')');
-      var buf = await resp.arrayBuffer();
+      // For DOCX we need fresh blob (mammoth uses arrayBuffer)
+      var freshBlob = await window.localAPI.getBlob('/view/' + storagePath);
+      var buf = await freshBlob.arrayBuffer();
       var result = await mammoth.convertToHtml({ arrayBuffer: buf });
       content.innerHTML = '<div class="docx-content">' + result.value + '</div>';
       return;
     }
 
-    // ── PDF → PDF.js canvas rendering ───────────────────────
     if (ext === 'pdf') {
       if (typeof pdfjsLib === 'undefined') {
         content.innerHTML = '<div class="error-msg" style="padding:20px">PDF.js не завантажився. Оновіть сторінку.</div>';
@@ -365,9 +360,8 @@ async function openPDFViewer(url, filename) {
       }
       pdfjsLib.GlobalWorkerOptions.workerSrc =
         'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
       content.innerHTML = '<div class="loading" style="padding:40px;text-align:center">⏳ Рендеринг сторінок...</div>';
-      var pdf = await pdfjsLib.getDocument({ url: url, withCredentials: false }).promise;
+      var pdf = await pdfjsLib.getDocument({ url: blobUrl }).promise;
       content.innerHTML = '';
       for (var p = 1; p <= pdf.numPages; p++) {
         var page = await pdf.getPage(p);
@@ -382,19 +376,16 @@ async function openPDFViewer(url, filename) {
       return;
     }
 
-    // ── XLSX / XLS → повідомлення ────────────────────────────
     if (ext === 'xlsx' || ext === 'xls') {
       content.innerHTML = '<div class="doc-info-msg">📊 Таблиця Excel<br><small>Перегляд таблиць у браузері не підтримується.<br>Зверніться до адміністратора.</small></div>';
       return;
     }
 
-    // ── PPTX / PPT → повідомлення ────────────────────────────
     if (ext === 'pptx' || ext === 'ppt') {
       content.innerHTML = '<div class="doc-info-msg">📑 Презентація PowerPoint<br><small>Перегляд презентацій у браузері не підтримується.<br>Зверніться до адміністратора.</small></div>';
       return;
     }
 
-    // ── Інші формати ─────────────────────────────────────────
     content.innerHTML = '<div class="doc-info-msg">📎 ' + escHTML(filename || 'Файл') + '<br><small>Перегляд цього формату недоступний.</small></div>';
 
   } catch(e) {
@@ -402,17 +393,24 @@ async function openPDFViewer(url, filename) {
   }
 }
 
+// Keep backward compat alias
+window.openPDFViewer = function(url, name) { openDocViewer(url, name, ''); };
+
 // ============================================================
 // DELETE FILE
 // ============================================================
 
 async function deleteUnitFile(fileId, unitId, unitName, container) {
   if (!confirm('Видалити файл?')) return;
-  var { data } = await window.supabase.from('unit_files').select('storage_path').eq('id', fileId).single();
-  if (data?.storage_path) await window.supabase.storage.from('unit-files').remove([data.storage_path]);
-  var { error } = await window.supabase.from('unit_files').delete().eq('id', fileId);
-  if (error) { alert(error.message); return; }
-  await renderUnitFiles(container || document.getElementById('unit-files-tab-content'), unitId, unitName);
+  try {
+    await window.localAPI.fetch('/files/' + fileId, { method: 'DELETE' });
+    // Clear blob cache for this file
+    // (we don't know the storagePath here easily, so just clear all)
+    _blobCache = {};
+    await renderUnitFiles(container || document.getElementById('sidebar-files-panel'), unitId, unitName);
+  } catch(e) {
+    alert('Помилка: ' + e.message);
+  }
 }
 
 // ============================================================
@@ -424,29 +422,27 @@ async function adminUploadFilesToSection(fileList, unitId, unitName, sectionName
     return !f.name.startsWith('.') && !f.name.endsWith('.tmp') && f.size > 0;
   });
   var done = 0, errors = [];
+  var secIdx = DEFAULT_SECTIONS.indexOf(sectionName) + 1 || 0;
 
   for (var i = 0; i < files.length; i++) {
     var file = files[i];
     try {
-      var secIdx = DEFAULT_SECTIONS.indexOf(sectionName) + 1 || 0;
-      var storagePath = makeSafeStoragePath(unitId, secIdx, file.name);
-      var up = await window.supabase.storage.from('unit-files').upload(storagePath, file, { upsert: false });
-      if (up.error) {
-        errors.push(file.name + ': ' + up.error.message);
-      } else {
-        await window.supabase.from('unit_files').insert({
-          unit_id: String(unitId), unit_name: unitName,
-          section_num: secIdx,
-          section_name: sectionName,
-          filename: file.name, storage_path: storagePath,
-          mime_type: file.type || '', file_size: file.size,
-          uploaded_by: window.currentUser?.id || null,
-        }, { onConflict: 'storage_path' });
-      }
-    } catch(e) { errors.push(file.name + ': ' + e.message); }
+      var fd = new FormData();
+      fd.append('file', file);
+      fd.append('unit_id', String(unitId));
+      fd.append('unit_name', unitName || '');
+      fd.append('section_name', sectionName);
+      fd.append('section_num', String(secIdx));
+
+      await window.localAPI.fetch('/files/upload', { method: 'POST', body: fd });
+    } catch(e) {
+      errors.push(file.name + ': ' + e.message);
+    }
     done++;
     if (typeof onProgress === 'function') onProgress(done, files.length);
   }
+  // Clear blob cache so fresh files load
+  _blobCache = {};
   return errors;
 }
 
@@ -460,30 +456,27 @@ async function adminUploadFolder(fileList, unitId, unitName, onProgress) {
     var file = files[i];
     try {
       var parts = (file.webkitRelativePath || file.name).split('/');
-      var secName, fileSubPath;
-      if (parts.length >= 3) { secName = parts[1]; fileSubPath = parts.slice(2).join('/'); }
-      else if (parts.length === 2) { secName = parts[1]; fileSubPath = file.name; }
-      else { secName = DEFAULT_SECTIONS[0]; fileSubPath = file.name; }
+      var secName;
+      if (parts.length >= 2) { secName = parts[1]; }
+      else { secName = DEFAULT_SECTIONS[0]; }
 
       var secIdx2 = DEFAULT_SECTIONS.indexOf(secName) + 1 || 0;
-      var storagePath = makeSafeStoragePath(unitId, secIdx2, file.name);
-      var up = await window.supabase.storage.from('unit-files').upload(storagePath, file, { upsert: false });
-      if (up.error) {
-        errors.push(file.name + ': ' + up.error.message);
-      } else {
-        await window.supabase.from('unit_files').insert({
-          unit_id: String(unitId), unit_name: unitName,
-          section_num: secIdx2,
-          section_name: secName,
-          filename: file.name, storage_path: storagePath,
-          mime_type: file.type || '', file_size: file.size,
-          uploaded_by: window.currentUser?.id || null,
-        }, { onConflict: 'storage_path' });
-      }
-    } catch(e) { errors.push(file.name + ': ' + e.message); }
+
+      var fd = new FormData();
+      fd.append('file', file);
+      fd.append('unit_id', String(unitId));
+      fd.append('unit_name', unitName || '');
+      fd.append('section_name', secName);
+      fd.append('section_num', String(secIdx2));
+
+      await window.localAPI.fetch('/files/upload', { method: 'POST', body: fd });
+    } catch(e) {
+      errors.push(file.name + ': ' + e.message);
+    }
     done++;
     if (typeof onProgress === 'function') onProgress(done, files.length);
   }
+  _blobCache = {};
   return errors;
 }
 
@@ -492,7 +485,7 @@ async function adminUploadFolder(fileList, unitId, unitName, onProgress) {
 // ============================================================
 
 window.loadAndRenderFilesTab = async function(unitId, unitName) {
-  var container = document.getElementById('unit-files-tab-content');
+  var container = document.getElementById('sidebar-files-panel');
   if (!container) return;
   await renderUnitFiles(container, unitId, unitName);
 };
@@ -502,23 +495,19 @@ window.loadAndRenderFilesTab = async function(unitId, unitName) {
 // ============================================================
 
 function handleSectionFileInput(input) {
-  input.addEventListener('change', async function(e) {
+  input.addEventListener('change', async function() {
     var sec = input.dataset.sec;
     var unitId = input.dataset.unitId;
     var unitName = input.dataset.unitName || '';
     if (!unitId || !sec || !input.files?.length) { input.value = ''; return; }
 
     var container = input._container || document.getElementById('unit-files-tab-content');
-    var bySection = input._bySection;
-    var sectionNames = input._sectionNames;
 
-    // Show progress indicator
-    var prevHTML = container?.innerHTML;
     if (container) container.innerHTML = '<div class="loading" style="padding:32px;text-align:center">Завантаження файлів... 0%</div>';
 
     var errors = await adminUploadFilesToSection(input.files, unitId, unitName, sec, function(done, total) {
-      if (container) container.querySelector('.loading').textContent =
-        'Завантаження файлів... ' + Math.round((done/total)*100) + '% (' + done + '/' + total + ')';
+      var loadEl = container?.querySelector('.loading');
+      if (loadEl) loadEl.textContent = 'Завантаження файлів... ' + Math.round((done/total)*100) + '% (' + done + '/' + total + ')';
     });
 
     input.value = '';
@@ -530,41 +519,27 @@ function handleSectionFileInput(input) {
       alert('Завантажено з помилками:\n' + errors.slice(0, 5).join('\n'));
     }
 
-    // Re-render
     if (container) await renderUnitFiles(container, unitId, unitName);
     if (typeof refreshAdminFilesList === 'function') refreshAdminFilesList(unitId);
   });
 }
 
 function bindFilesUI() {
-  // PDF viewer close
-  document.getElementById('pdf-viewer-close')?.addEventListener('click', function() {
-    var m = document.getElementById('pdf-viewer-modal');
-    if (m) m.close();
-    var f = document.getElementById('pdf-viewer-iframe');
-    if (f) f.src = '';
+  var closeBtn = document.getElementById('dv-close');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closeDocViewer);
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDocViewer();
   });
 
-  // Image viewer close
-  document.getElementById('img-viewer-close')?.addEventListener('click', function() {
-    var m = document.getElementById('img-viewer-modal');
-    if (m) m.close();
-    var i = document.getElementById('img-viewer-img');
-    if (i) i.src = '';
-  });
-
-  // Unit modal file input (for upload from within modal)
-  var unitInput = document.getElementById('unit-section-file-input');
-  if (unitInput) handleSectionFileInput(unitInput);
-
-  // Admin panel file input
   var adminInput = document.getElementById('admin-section-file-input');
   if (adminInput) handleSectionFileInput(adminInput);
 }
 
 bindFilesUI();
 window.adminUploadFolder         = adminUploadFolder;
-window.openPDFViewer             = openPDFViewer;
+window.openDocViewer             = openDocViewer;
 window.openImgViewer             = openImgViewer;
 window.renderUnitFiles           = renderUnitFiles;
 window.adminUploadFilesToSection = adminUploadFilesToSection;

@@ -6,7 +6,7 @@ var state = {
   edits: {},          // {id: {name, level, parent, lat, lon, color}}
   filters: { period: 'today', level: '', parent: '', query: '' },
   mapmode: 'points',
-  theme: localStorage.getItem('theme') || 'dark',
+  theme: localStorage.getItem('theme') || 'light',
   dataSource: { type: 'demo', url: '' },
   refreshMinutes: 0,
   refreshTimer: null,
@@ -156,6 +156,16 @@ function normalizeArray(rows){
 }
 
 async function loadDemo(){
+  // Load live data from Cloudflare Workers API (analitika.pages.dev source)
+  try {
+    const res = await fetch('https://police-units.kostyalitvinov8.workers.dev/api/units', {cache:'no-cache'});
+    const rows = await res.json();
+    state.dataSource = { type:'demo', url:'' };
+    state.raw = Array.isArray(rows) ? rows : [];
+    reapplyEdits();
+    return;
+  } catch(e) { console.warn('API load failed, fallback to CSV', e); }
+  // Fallback to local CSV
   const res = await fetch('data/checks_formatted.csv', {cache:'no-cache'});
   const text = await res.text();
   const rows = parseCSV(text);
@@ -260,6 +270,13 @@ let map;
 let clusterLayer;
 
 function initMap(){
+  // Fix Leaflet default icon paths when loaded from CDN
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  });
   map = L.map('map', { zoomControl: true });
   map.on('popupopen', (e)=>{ try{ attachHoverHandlersToPopup(e.popup); }catch(err){ console.warn(err); } });
   window.leaflet_map = map;
@@ -299,14 +316,7 @@ function renderLayers(){
   const rows = filteredData();
   rows.forEach(d=>{
     if (!Number.isFinite(d.lat) || !Number.isFinite(d.lon)) return;
-    const val = currentMetric(d);
-    const m = L.circleMarker([d.lat, d.lon], {
-      radius: radiusForValue(val),
-      fillColor: d.color || colorForValue(val),
-      fillOpacity: 0.85,
-      weight: 1,
-      color: '#1f2937'
-    }).bindPopup(popupHTML(d));
+    const m = L.marker([d.lat, d.lon]).bindPopup(popupHTML(d), { maxWidth: 260 });
     clusterLayer.addLayer(m);
   });
 }
@@ -382,25 +392,82 @@ function photoUrlFor(d){
   return '';
 }
 function popupHTML(d){
-  let photoUrl = d.photoUrl || (d.photoId ? driveViewUrlFromId(d.photoId) : '');
-  const fixed = photoUrlFor(d);
-  if (fixed) photoUrl = fixed;
   const safeName = (d.name||'').replace(/"/g,'&quot;');
-  const chief = d.chief || '';
-  return `<div class="popup unit-popup" data-photo-url="${photoUrl||''}" data-unit-id="${d.id||''}">
-    <div class="popup-title">${d.name || '—'}</div>
-    <div class="popup-info">
-      <div class="popup-row"><span class="popup-label">Керівник:</span> <span>${chief || '—'}</span></div>
-      <div class="popup-row"><span class="popup-label">Перевірок (рік):</span> <span><b>${Number(d.ytd||0)}</b></span></div>
-      <div class="popup-row"><span class="popup-label">Перевіряючі:</span> <span>${d.inspectors || '—'}</span></div>
-      <div class="popup-row"><span class="popup-label">Остання перевірка:</span> <span><b>${formatDate(d.last_check)}</b></span></div>
+  const ytd = Number(d.ytd||0);
+  const today = Number(d.today||0);
+  const lastCheck = d.last_check ? formatDate(d.last_check) : '—';
+  const level = d.level || '';
+  const inspector = d.last_inspector || '';
+  return `<div class="unit-popup">
+    <div class="popup-header">
+      <div class="popup-name">${d.name || '—'}</div>
+      ${level ? `<div class="popup-badges"><span class="popup-badge">${level}</span></div>` : ''}
     </div>
-    <div class="unit-photo-wrap"><img alt="Фото підрозділу" loading="lazy"></div>
-    <button class="btn-unit-info" data-unit-id="${d.id||''}" data-unit-name="${safeName}">
-      📋 Кураторська справа
-    </button>
+    <div class="popup-body">
+      <div class="popup-stats">
+        <div class="popup-stat"><span class="ps-val">${today}</span><span class="ps-lbl">сьогодні</span></div>
+        <div class="popup-stat"><span class="ps-val">${ytd}</span><span class="ps-lbl">за рік</span></div>
+        <div class="popup-stat"><span class="ps-val">${lastCheck}</span><span class="ps-lbl">остання</span></div>
+      </div>
+      ${inspector ? `<div class="popup-inspector">Інспектор: ${inspector}</div>` : ''}
+      <button class="popup-detail-btn" data-unit-id="${d.id||''}" data-unit-name="${safeName}" onclick="window.openUnitSidebar&&window.openUnitSidebar(this.dataset)">📋 Файли та справи</button>
+    </div>
   </div>`;
 }
+
+window.openUnitSidebar = function(dataset) {
+  var unitId = dataset.unitId;
+  var unitName = dataset.unitName;
+  // Switch sidebar to unit detail mode
+  document.getElementById('sidebar-default')?.classList.add('hidden');
+  document.getElementById('sidebar-unit')?.classList.remove('hidden');
+  var nameEl = document.getElementById('sidebar-unit-name');
+  var metaEl = document.getElementById('sidebar-unit-meta');
+  if (nameEl) nameEl.textContent = unitName || '';
+  // Find unit data for meta info
+  var unit = (window.state && window.state.data || []).find(function(r){ return String(r.id) === String(unitId); });
+  if (metaEl && unit) {
+    metaEl.textContent = (unit.level || '') + (unit.parent ? ' · ' + unit.parent : '') +
+      (unit.ytd ? ' · Перевірок за рік: ' + unit.ytd : '');
+  }
+  // Activate checks tab by default
+  window.switchSidebarTab('checks');
+  // Load inspections
+  if (typeof window.loadSidebarChecks === 'function') {
+    window.loadSidebarChecks(unitId, unitName);
+  }
+  // Load files (deferred — loaded when tab is clicked)
+  var _filesLoaded = false;
+  var _casesLoaded = false;
+  document.querySelectorAll('.su-tab').forEach(function(btn) {
+    btn.onclick = function() {
+      var t = btn.dataset.tab;
+      window.switchSidebarTab(t);
+      if (t === 'files' && !_filesLoaded) {
+        _filesLoaded = true;
+        if (typeof window.loadAndRenderFilesTab === 'function') window.loadAndRenderFilesTab(unitId, unitName);
+      }
+      if (t === 'cases' && !_casesLoaded) {
+        _casesLoaded = true;
+        if (typeof window.loadSidebarCases === 'function') window.loadSidebarCases(unitId, unitName);
+      }
+    };
+  });
+  // Close map popup
+  if (window.leaflet_map) window.leaflet_map.closePopup();
+};
+
+window.switchSidebarTab = function(tab) {
+  document.querySelectorAll('.su-tab').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  ['checks', 'files', 'cases'].forEach(function(t) {
+    var el = document.getElementById('sidebar-' + t + '-panel');
+    if (!el) return;
+    el.classList.toggle('hidden', t !== tab);
+    el.classList.toggle('active', t === tab);
+  });
+};
 
 function locateMe(){
   if (!map) return;
@@ -423,13 +490,40 @@ function updateKPI(){
   const el = document.getElementById('kpi-box');
   if (!el) return;
   if (window.state && state.loading){
-    el.innerHTML = '<div class="skeleton kpi-skeleton"></div>';
+    el.innerHTML = '<div class="kpi-grid"><div class="kpi-card"><span class="kpi-value">…</span><span class="kpi-label">Завантаження</span></div></div>';
     return;
   }
-  el.innerHTML = [
-    `<div style="font-weight:bold; line-height:1.4;">ЗАГАЛЬНА КІЛЬКІСТЬ ТЕРИТОРІАЛЬНИХ ПІДРОЗДІЛІВ — <span style="color:#ffd700">42</span></div>`,
-    `<div style="margin-top:1em; font-style:italic; font-weight:normal; font-size:0.82em; opacity:0.85;">5 РУП, 4 РВП, 13 ВП, 11 ВнП, 8 СПД, 1 ВПД</div>`
-  ].join('');
+  const rows = Array.isArray(state.data) ? state.data : [];
+  const totalToday = rows.reduce(function(s,r){ return s + Number(r.today||0); }, 0);
+  const totalM30   = rows.reduce(function(s,r){ return s + Number(r.m30||0); }, 0);
+  const totalYtd   = rows.reduce(function(s,r){ return s + Number(r.ytd||0); }, 0);
+  const totalUnits = rows.length;
+
+  el.innerHTML =
+    '<div class="kpi-grid">' +
+      '<div class="kpi-card"><span class="kpi-value">' + totalToday + '</span><span class="kpi-label">Сьогодні</span></div>' +
+      '<div class="kpi-card"><span class="kpi-value">' + totalM30   + '</span><span class="kpi-label">За 30 днів</span></div>' +
+      '<div class="kpi-card"><span class="kpi-value">' + totalYtd   + '</span><span class="kpi-label">З поч. року</span></div>' +
+    '</div>' +
+    '<div class="kpi-summary">' +
+      '<span class="kpi-summary-total">Підрозділів: <strong>' + totalUnits + '</strong></span>' +
+    '</div>';
+
+  // Render top-5 units by ytd checks
+  var topSec = document.getElementById('top-units-section');
+  var topList = document.getElementById('topUnitsList');
+  if (topSec && topList && rows.length) {
+    var sorted = rows.slice().sort(function(a,b){ return Number(b.ytd||0) - Number(a.ytd||0); });
+    var top5 = sorted.slice(0, 5);
+    topList.innerHTML = top5.map(function(r, i) {
+      return '<div class="top-unit-item">' +
+        '<span class="top-unit-rank">' + (i+1) + '</span>' +
+        '<span class="top-unit-name">' + (r.name||'—') + '</span>' +
+        '<span class="top-unit-score">' + Number(r.ytd||0) + '</span>' +
+      '</div>';
+    }).join('');
+    topSec.style.display = '';
+  }
 }
 
 
@@ -472,11 +566,11 @@ function updateLevelChart(){
         layout: { padding: { left: 20, right: 10, top: 10, bottom: 10 } },
         plugins: {
           legend: { display: false },
-          title: { display: true, text: 'Найбільша кількість перевірок', align:'center', color: '#f0f4ff', font:{size:14, weight:'bold'} }
+          title: { display: true, text: 'ТОП-5 за рік', align:'center', color: '#1f2937', font:{size:12, weight:'bold'} }
         },
         scales: {
-          x: { ticks: { color: '#f0f4ff' }, beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' } },
-          y: { ticks: { color: '#f0f4ff', autoSkip: false }, grid: { color: 'rgba(255,255,255,0.05)' } }
+          x: { ticks: { color: '#4b5563', font:{size:10} }, beginAtZero: true, grid: { color: 'rgba(0,0,0,0.06)' } },
+          y: { ticks: { color: '#374151', font:{size:10}, autoSkip: false }, grid: { display: false } }
         }
       }
     });
@@ -543,7 +637,7 @@ function bindUI(){
   q('btn-settings')?.addEventListener('click', openSettings);
   q('btn-theme')?.addEventListener('click', ()=>{
     state.theme = (state.theme==='dark'?'light':'dark');
-    document.body.classList.toggle('theme-light', state.theme==='light');
+    document.body.classList.toggle('dark', state.theme==='dark');
     saveSettings();
   });
 
@@ -560,6 +654,12 @@ function bindUI(){
     });
   }
   setupAutoRefresh();
+
+  // Back button
+  document.getElementById('sidebar-back-btn')?.addEventListener('click', function() {
+    document.getElementById('sidebar-unit')?.classList.add('hidden');
+    document.getElementById('sidebar-default')?.classList.remove('hidden');
+  });
 }
 
 async function setupAutoRefresh(){
@@ -631,7 +731,7 @@ function openSettings(){
   const rows = Array.isArray(state.data) ? state.data : [];
   tbody.innerHTML = rows.map(rowTemplate).join('');
 
-  // Wire inputs
+  // Wire row inputs (re-created each open, so addEventListener is fine here)
   tbody.querySelectorAll('input').forEach(inp=>{
     inp.addEventListener('change', (e)=>{
       const tr = e.target.closest('tr[data-id]');
@@ -648,15 +748,25 @@ function openSettings(){
     });
   });
 
-  // Buttons
-  btnClose?.addEventListener('click', ()=>dlg?.close());
-  btnApply?.addEventListener('click', ()=>{
+  // Search filter — use oninput (replaces on re-open, no accumulation)
+  var searchEl = document.getElementById('settings-search');
+  if (searchEl) searchEl.oninput = function() {
+    var q = searchEl.value.trim().toLowerCase();
+    tbody.querySelectorAll('tr[data-id]').forEach(function(tr) {
+      var name = (tr.querySelector('[data-k="name"]')?.value || '').toLowerCase();
+      tr.style.display = (!q || name.includes(q)) ? '' : 'none';
+    });
+  };
+
+  // Buttons — use onclick (not addEventListener) to prevent accumulation on re-open
+  if (btnClose) btnClose.onclick = function() { dlg?.close(); };
+  if (btnApply) btnApply.onclick = function() {
     reapplyEdits(); saveSettings(); renderLayers(); updateKPI(); updateLevelChart && updateLevelChart(); dlg?.close();
-  });
-  btnReset?.addEventListener('click', ()=>{
+  };
+  if (btnReset) btnReset.onclick = function() {
     if (!confirm('Скинути всі локальні зміни?')) return;
     clearEdits(); reapplyEdits(); renderLayers(); updateKPI(); updateLevelChart && updateLevelChart(); openSettings();
-  });
+  };
 
   dlg?.showModal();
 }
@@ -676,7 +786,7 @@ window.openSettings = openSettings;
 
 async function boot(){
   loadSettings();
-  if (state.theme==='light') document.body.classList.add('theme-light');
+  if (state.theme==='dark') document.body.classList.add('dark');
 
   initMap();
   initSettings();

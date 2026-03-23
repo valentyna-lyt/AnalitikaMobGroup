@@ -1,7 +1,7 @@
 // ---- admin.js ----
 
 // ============================================================
-// ADMIN PANEL — open with optional tab
+// ADMIN PANEL
 // ============================================================
 
 async function openAdminPanel(tab, preselectUnitId) {
@@ -24,23 +24,20 @@ async function openAdminPanel(tab, preselectUnitId) {
 window.openAdminPanel = openAdminPanel;
 
 function switchAdminTab(tab) {
-  var tabCases   = document.getElementById('admin-tab-cases');
-  var tabFiles   = document.getElementById('admin-tab-files');
-  var panelCases = document.getElementById('admin-cases-panel');
-  var panelFiles = document.getElementById('admin-files-panel');
-
-  if (tab === 'files') {
-    tabCases.classList.remove('active');
-    tabFiles.classList.add('active');
-    panelCases.style.display = 'none';
-    panelFiles.style.display = 'block';
-    populateUnitSelector();
-  } else {
-    tabCases.classList.add('active');
-    tabFiles.classList.remove('active');
-    panelCases.style.display = 'block';
-    panelFiles.style.display = 'none';
-  }
+  var tabs = ['cases', 'files', 'users'];
+  tabs.forEach(function(t) {
+    var btn = document.getElementById('admin-tab-' + t);
+    var panel = document.getElementById('admin-' + t + '-panel');
+    if (!btn || !panel) return;
+    if (t === tab) {
+      btn.classList.add('active');
+      panel.style.display = 'block';
+    } else {
+      btn.classList.remove('active');
+      panel.style.display = 'none';
+    }
+  });
+  if (tab === 'files') populateUnitSelector();
 }
 
 // ============================================================
@@ -51,43 +48,38 @@ async function refreshAdminTable() {
   var tbody = document.getElementById('admin-cases-tbody');
   tbody.innerHTML = '<tr><td colspan="5" class="loading">Завантаження...</td></tr>';
 
-  var result = await window.supabase
-    .from('unit_cases')
-    .select('*')
-    .order('created_at', { ascending: false });
+  try {
+    var data = await window.localAPI.fetch('/cases/all');
+    var countEl = document.getElementById('admin-total-count');
+    if (countEl) countEl.textContent = 'Всього справ: ' + data.length;
 
-  if (result.error) {
-    tbody.innerHTML = '<tr><td colspan="5" class="error-msg">' + escHTML(result.error.message) + '</td></tr>';
-    return;
-  }
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="no-data">Справи відсутні</td></tr>';
+      return;
+    }
 
-  var data = result.data || [];
-  var countEl = document.getElementById('admin-total-count');
-  if (countEl) countEl.textContent = 'Всього справ: ' + data.length;
+    tbody.innerHTML = data.map(function(c) {
+      return '<tr>' +
+        '<td>' + escHTML(c.unit_name || c.unit_id) + '</td>' +
+        '<td>' + escHTML(c.title) + '</td>' +
+        '<td>' + (c.case_date ? formatDate(c.case_date) : '—') + '</td>' +
+        '<td>' + new Date(c.created_at).toLocaleDateString('uk-UA') + '</td>' +
+        '<td><button class="btn-sm btn-danger admin-del-case" data-id="' + escHTML(c.id) + '">🗑️</button></td>' +
+        '</tr>';
+    }).join('');
 
-  if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="no-data">Справи відсутні</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = data.map(function(c) {
-    return '<tr>' +
-      '<td>' + escHTML(c.unit_name || c.unit_id) + '</td>' +
-      '<td>' + escHTML(c.title) + '</td>' +
-      '<td>' + (c.case_date ? formatDate(c.case_date) : '—') + '</td>' +
-      '<td>' + new Date(c.created_at).toLocaleDateString('uk-UA') + '</td>' +
-      '<td><button class="btn-sm btn-danger admin-del-case" data-id="' + escHTML(c.id) + '">🗑️</button></td>' +
-      '</tr>';
-  }).join('');
-
-  tbody.querySelectorAll('.admin-del-case').forEach(function(btn) {
-    btn.addEventListener('click', async function() {
-      if (!confirm('Видалити справу?')) return;
-      var res = await window.supabase.from('unit_cases').delete().eq('id', btn.dataset.id);
-      if (res.error) { alert(res.error.message); return; }
-      await refreshAdminTable();
+    tbody.querySelectorAll('.admin-del-case').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        if (!confirm('Видалити справу?')) return;
+        try {
+          await window.localAPI.fetch('/cases/' + btn.dataset.id, { method: 'DELETE' });
+          await refreshAdminTable();
+        } catch(e) { alert(e.message); }
+      });
     });
-  });
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="5" class="error-msg">' + escHTML(e.message) + '</td></tr>';
+  }
 }
 
 // ============================================================
@@ -112,199 +104,174 @@ async function refreshAdminFilesList(unitId) {
 
   container.innerHTML = '<div class="loading">Завантаження...</div>';
 
-  // Load sections
-  var secResult = await window.supabase
-    .from('unit_sections')
-    .select('*')
-    .eq('unit_id', String(unitId))
-    .order('section_order')
-    .order('section_name');
+  try {
+    var files = await window.localAPI.fetch('/files/' + encodeURIComponent(unitId));
 
-  if (secResult.error) {
-    container.innerHTML = '<div class="error-msg">' + escHTML(secResult.error.message) + '</div>';
-    return;
+    // Group files by section_name
+    var bySection = {};
+    files.forEach(function(f) {
+      var key = f.section_name || 'Без розділу';
+      if (!bySection[key]) bySection[key] = [];
+      bySection[key].push(f);
+    });
+
+    // Merge DEFAULT_SECTIONS + any extra from files
+    var sectionNames = (window.DEFAULT_SECTIONS || []).slice();
+    Object.keys(bySection).forEach(function(name) {
+      if (sectionNames.indexOf(name) === -1) sectionNames.push(name);
+    });
+
+    var totalFiles = files.length;
+    var html = '<div class="admin-files-total">Файлів: ' + totalFiles + ' | Розділів: ' + sectionNames.length + '</div>';
+
+    sectionNames.forEach(function(secName) {
+      var secFiles = bySection[secName] || [];
+      html += '<div class="admin-sec-group" data-sec="' + escHTML(secName) + '">' +
+        '<div class="admin-sec-title" style="display:flex;align-items:center;justify-content:space-between">' +
+        '<span>' + escHTML(secName) + ' (' + secFiles.length + ' файл' + (secFiles.length === 1 ? '' : secFiles.length < 5 ? 'и' : 'ів') + ')</span>' +
+        '<div style="display:flex;gap:6px">' +
+        '<label class="btn-sm" style="cursor:pointer" title="Завантажити файли в розділ">' +
+        '<input type="file" class="admin-sec-upload-input" data-sec="' + escHTML(secName) + '" multiple style="display:none">⬆ Файли</label>' +
+        (secFiles.length > 0 ? '<button class="btn-sm btn-danger admin-del-sec-btn" data-sec="' + escHTML(secName) + '" title="Видалити всі файли розділу">🗑️ Розділ</button>' : '') +
+        '</div>' +
+        '</div>';
+
+      if (secFiles.length) {
+        html += '<table class="admin-table" style="margin-bottom:0">' +
+          '<thead><tr><th>Файл</th><th>Розмір</th><th>Дата</th><th></th></tr></thead><tbody>' +
+          secFiles.map(function(f) {
+            return '<tr>' +
+              '<td>' + escHTML(f.filename) + '</td>' +
+              '<td>' + (f.file_size ? (f.file_size / 1024).toFixed(0) + ' KB' : '—') + '</td>' +
+              '<td>' + new Date(f.created_at).toLocaleDateString('uk-UA') + '</td>' +
+              '<td><button class="btn-sm btn-danger admin-del-file" data-id="' + escHTML(f.id) + '">🗑️</button></td>' +
+              '</tr>';
+          }).join('') +
+          '</tbody></table>';
+      } else {
+        html += '<div class="no-data" style="padding:8px 0;font-size:12px">Файлів немає — завантажте кнопкою ⬆</div>';
+      }
+
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+
+    // Delete section (all files in section)
+    container.querySelectorAll('.admin-del-sec-btn').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        var sec = btn.dataset.sec;
+        if (!confirm('Видалити всі файли розділу "' + sec + '"?')) return;
+        var secFiles = bySection[sec] || [];
+        try {
+          for (var i = 0; i < secFiles.length; i++) {
+            await window.localAPI.fetch('/files/' + secFiles[i].id, { method: 'DELETE' });
+          }
+          await refreshAdminFilesList(unitId);
+        } catch(e) { alert(e.message); }
+      });
+    });
+
+    // Delete single file
+    container.querySelectorAll('.admin-del-file').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        if (!confirm('Видалити файл?')) return;
+        try {
+          await window.localAPI.fetch('/files/' + btn.dataset.id, { method: 'DELETE' });
+          await refreshAdminFilesList(unitId);
+        } catch(e) { alert(e.message); }
+      });
+    });
+
+    // Per-section file upload
+    container.querySelectorAll('.admin-sec-upload-input').forEach(function(input) {
+      input.addEventListener('change', async function(e) {
+        var fileList = e.target.files;
+        var sec = input.dataset.sec;
+        if (!fileList?.length || !sec) return;
+
+        var sel = document.getElementById('admin-upload-unit-sel');
+        var unitName = sel?.options[sel.selectedIndex]?.text || '';
+
+        var prog = document.getElementById('admin-upload-progress');
+        var fill = document.getElementById('admin-progress-fill');
+        var progText = document.getElementById('admin-progress-text');
+
+        if (prog) prog.style.display = 'block';
+        if (fill) { fill.style.width = '0%'; fill.style.background = ''; }
+        if (progText) progText.textContent = 'Завантаження в розділ "' + sec + '"...';
+
+        var errors = await window.adminUploadFilesToSection(fileList, unitId, unitName, sec, function(done, total) {
+          var pct = Math.round((done / total) * 100);
+          if (fill) fill.style.width = pct + '%';
+          if (progText) progText.textContent = done + ' / ' + total + ' файлів (' + pct + '%)';
+        });
+
+        if (fill) { fill.style.width = '100%'; fill.style.background = errors.length ? 'var(--bad)' : 'var(--ok)'; }
+        if (progText) progText.textContent = errors.length
+          ? 'Помилки (' + errors.length + '): ' + errors.slice(0, 3).join(', ')
+          : 'Завантажено успішно!';
+
+        e.target.value = '';
+        await refreshAdminFilesList(unitId);
+      });
+    });
+
+  } catch(e) {
+    container.innerHTML = '<div class="error-msg">' + escHTML(e.message) + '</div>';
   }
+}
 
-  // Load files to count per section
-  var filesResult = await window.supabase
-    .from('unit_files')
-    .select('id, section_name, filename, file_size, uploaded_at')
-    .eq('unit_id', String(unitId))
-    .order('section_name')
-    .order('filename');
+window.refreshAdminFilesList = refreshAdminFilesList;
 
-  var sections = secResult.data || [];
-  var files    = filesResult.data || [];
+// ============================================================
+// USERS TAB
+// ============================================================
 
-  // Group files by section_name
-  var bySection = {};
-  files.forEach(function(f) {
-    var key = f.section_name || 'Без розділу';
-    if (!bySection[key]) bySection[key] = [];
-    bySection[key].push(f);
-  });
+async function refreshAdminUsers() {
+  var tbody = document.getElementById('admin-users-tbody');
+  var countEl = document.getElementById('admin-users-count');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" class="loading">Завантаження...</td></tr>';
 
-  // Merge: sections + any orphan names from files
-  var sectionNames = sections.map(function(s) { return s.section_name; });
-  Object.keys(bySection).forEach(function(name) {
-    if (sectionNames.indexOf(name) === -1) sectionNames.push(name);
-  });
+  try {
+    var users = await window.localAPI.fetch('/users');
+    if (countEl) countEl.textContent = 'Користувачів: ' + users.length;
 
-  if (!sectionNames.length && !files.length) {
-    container.innerHTML = '<div class="no-data">Файлів та розділів ще немає для цього підрозділу</div>';
-    return;
-  }
-
-  var totalFiles = files.length;
-  var html = '<div class="admin-files-total">Файлів: ' + totalFiles + ' | Розділів: ' + sectionNames.length + '</div>';
-
-  // Add section button
-  html += '<div class="sec-mgmt-bar">' +
-    '<button class="btn-sm" id="admin-add-section-btn">+ Додати розділ</button>' +
-    '</div>' +
-    '<div class="add-section-form hidden" id="admin-add-section-form">' +
-    '<input type="text" id="admin-new-section-name" class="form-control" placeholder="Назва розділу..." style="flex:1;min-width:180px">' +
-    '<button class="btn-primary btn-sm" id="admin-save-section-btn">Зберегти</button>' +
-    '<button class="btn-sm" id="admin-cancel-section-btn">Скасувати</button>' +
-    '</div>';
-
-  sectionNames.forEach(function(secName) {
-    var secFiles = bySection[secName] || [];
-    html += '<div class="admin-sec-group" data-sec="' + escHTML(secName) + '">' +
-      '<div class="admin-sec-title" style="display:flex;align-items:center;justify-content:space-between">' +
-      '<span>' + escHTML(secName) + ' (' + secFiles.length + ' файл' + (secFiles.length === 1 ? '' : secFiles.length < 5 ? 'и' : 'ів') + ')</span>' +
-      '<div style="display:flex;gap:6px">' +
-      '<label class="btn-sm" style="cursor:pointer" title="Завантажити файли в розділ">' +
-      '<input type="file" class="admin-sec-upload-input" data-sec="' + escHTML(secName) + '" multiple style="display:none">⬆ Файли</label>' +
-      '<button class="btn-sm btn-danger admin-del-sec-btn" data-sec="' + escHTML(secName) + '" title="Видалити розділ">🗑️ Розділ</button>' +
-      '</div>' +
-      '</div>';
-
-    if (secFiles.length) {
-      html += '<table class="admin-table" style="margin-bottom:0">' +
-        '<thead><tr><th>Файл</th><th>Розмір</th><th>Дата</th><th></th></tr></thead><tbody>' +
-        secFiles.map(function(f) {
-          return '<tr>' +
-            '<td>' + escHTML(f.filename) + '</td>' +
-            '<td>' + (f.file_size ? (f.file_size / 1024).toFixed(0) + ' KB' : '—') + '</td>' +
-            '<td>' + new Date(f.uploaded_at || f.created_at || Date.now()).toLocaleDateString('uk-UA') + '</td>' +
-            '<td><button class="btn-sm btn-danger admin-del-file" data-id="' + escHTML(f.id) + '">🗑️</button></td>' +
-            '</tr>';
-        }).join('') +
-        '</tbody></table>';
-    } else {
-      html += '<div class="no-data" style="padding:8px 0;font-size:12px">Файлів немає — завантажте за допомогою кнопки ⬆</div>';
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="no-data">Користувачів немає</td></tr>';
+      return;
     }
 
-    html += '</div>'; // end admin-sec-group
-  });
+    tbody.innerHTML = users.map(function(u) {
+      return '<tr>' +
+        '<td>' + escHTML(u.email) + '</td>' +
+        '<td>' + escHTML(u.full_name || '—') + '</td>' +
+        '<td><span class="badge badge-' + (u.role === 'admin' ? 'bad' : 'info') + '">' + escHTML(u.role) + '</span></td>' +
+        '<td>' + new Date(u.created_at).toLocaleDateString('uk-UA') + '</td>' +
+        '<td>' +
+          (u.role !== 'admin' || users.filter(function(x){ return x.role==='admin'; }).length > 1
+            ? '<button class="btn-sm btn-danger admin-del-user" data-id="' + escHTML(u.id) + '">🗑️</button>'
+            : '') +
+        '</td>' +
+        '</tr>';
+    }).join('');
 
-  container.innerHTML = html;
-
-  // Add section form bindings
-  var addSecBtn = container.querySelector('#admin-add-section-btn');
-  var addSecForm = container.querySelector('#admin-add-section-form');
-  if (addSecBtn && addSecForm) {
-    addSecBtn.addEventListener('click', function() { addSecForm.classList.toggle('hidden'); });
-  }
-
-  var saveSecBtn = container.querySelector('#admin-save-section-btn');
-  if (saveSecBtn) {
-    saveSecBtn.addEventListener('click', async function() {
-      var nameInput = container.querySelector('#admin-new-section-name');
-      var secName = (nameInput?.value || '').trim();
-      if (!secName) { alert('Введіть назву розділу'); return; }
-      var sel = document.getElementById('admin-upload-unit-sel');
-      var unitName = sel?.options[sel.selectedIndex]?.text || '';
-      var res = await window.supabase.from('unit_sections').upsert({
-        unit_id: String(unitId),
-        unit_name: unitName,
-        section_name: secName,
-        section_order: sectionNames.length,
-        created_by: window.currentUser?.id || null,
-      }, { onConflict: 'unit_id,section_name' });
-      if (res.error) { alert(res.error.message); return; }
-      await refreshAdminFilesList(unitId);
-    });
-  }
-
-  var cancelSecBtn = container.querySelector('#admin-cancel-section-btn');
-  if (cancelSecBtn) {
-    cancelSecBtn.addEventListener('click', function() {
-      var f = container.querySelector('#admin-add-section-form');
-      if (f) f.classList.add('hidden');
-    });
-  }
-
-  // Delete section buttons
-  container.querySelectorAll('.admin-del-sec-btn').forEach(function(btn) {
-    btn.addEventListener('click', async function() {
-      var sec = btn.dataset.sec;
-      if (!confirm('Видалити розділ "' + sec + '" та всі файли?')) return;
-      var { data: secFiles } = await window.supabase
-        .from('unit_files')
-        .select('id, storage_path')
-        .eq('unit_id', String(unitId))
-        .eq('section_name', sec);
-      if (secFiles && secFiles.length) {
-        var paths = secFiles.map(function(f){ return f.storage_path; }).filter(Boolean);
-        if (paths.length) await window.supabase.storage.from('unit-files').remove(paths);
-        var ids = secFiles.map(function(f){ return f.id; });
-        await window.supabase.from('unit_files').delete().in('id', ids);
-      }
-      await window.supabase.from('unit_sections').delete().eq('unit_id', String(unitId)).eq('section_name', sec);
-      await refreshAdminFilesList(unitId);
-    });
-  });
-
-  // Delete file buttons
-  container.querySelectorAll('.admin-del-file').forEach(function(btn) {
-    btn.addEventListener('click', async function() {
-      if (!confirm('Видалити файл?')) return;
-      var { data: row } = await window.supabase
-        .from('unit_files').select('storage_path').eq('id', btn.dataset.id).single();
-      if (row?.storage_path) {
-        await window.supabase.storage.from('unit-files').remove([row.storage_path]);
-      }
-      await window.supabase.from('unit_files').delete().eq('id', btn.dataset.id);
-      await refreshAdminFilesList(unitId);
-    });
-  });
-
-  // Per-section file upload inputs (inside admin list)
-  container.querySelectorAll('.admin-sec-upload-input').forEach(function(input) {
-    input.addEventListener('change', async function(e) {
-      var fileList = e.target.files;
-      var sec      = input.dataset.sec;
-      if (!fileList?.length || !sec) return;
-
-      var sel      = document.getElementById('admin-upload-unit-sel');
-      var unitName = sel?.options[sel.selectedIndex]?.text || '';
-
-      var prog     = document.getElementById('admin-upload-progress');
-      var fill     = document.getElementById('admin-progress-fill');
-      var progText = document.getElementById('admin-progress-text');
-
-      if (prog) prog.style.display = 'block';
-      if (fill) { fill.style.width = '0%'; fill.style.background = ''; }
-      if (progText) progText.textContent = 'Завантаження в розділ "' + sec + '"...';
-
-      var errors = await adminUploadFilesToSection(fileList, unitId, unitName, sec, function(done, total) {
-        var pct = Math.round((done / total) * 100);
-        if (fill) fill.style.width = pct + '%';
-        if (progText) progText.textContent = done + ' / ' + total + ' файлів (' + pct + '%)';
+    tbody.querySelectorAll('.admin-del-user').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        if (!confirm('Видалити користувача?')) return;
+        try {
+          await window.localAPI.fetch('/users/' + btn.dataset.id, { method: 'DELETE' });
+          await refreshAdminUsers();
+        } catch(e) { alert(e.message); }
       });
-
-      if (fill) { fill.style.width = '100%'; fill.style.background = errors.length ? 'var(--bad)' : 'var(--ok)'; }
-      if (progText) progText.textContent = errors.length
-        ? 'Готово з помилками (' + errors.length + '): ' + errors.slice(0, 3).join(', ')
-        : 'Завантажено успішно!';
-
-      e.target.value = '';
-      await refreshAdminFilesList(unitId);
     });
-  });
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="5" class="error-msg">' + escHTML(e.message) + '</td></tr>';
+  }
 }
+
+window.refreshAdminUsers = refreshAdminUsers;
 
 // ============================================================
 // UI Bindings
@@ -315,7 +282,6 @@ function bindAdminUI() {
     document.getElementById('admin-modal').close();
   });
 
-  // Tab buttons
   document.getElementById('admin-tab-cases')?.addEventListener('click', function() {
     switchAdminTab('cases');
     refreshAdminTable();
@@ -323,24 +289,57 @@ function bindAdminUI() {
   document.getElementById('admin-tab-files')?.addEventListener('click', function() {
     switchAdminTab('files');
   });
+  document.getElementById('admin-tab-users')?.addEventListener('click', function() {
+    switchAdminTab('users');
+    refreshAdminUsers();
+  });
 
-  // Unit selector change
+  // Users tab: add user form
+  document.getElementById('admin-add-user-btn')?.addEventListener('click', function() {
+    var form = document.getElementById('admin-add-user-form');
+    if (form) form.classList.toggle('hidden');
+  });
+  document.getElementById('cancel-user-btn')?.addEventListener('click', function() {
+    var form = document.getElementById('admin-add-user-form');
+    if (form) form.classList.add('hidden');
+  });
+  document.getElementById('save-user-btn')?.addEventListener('click', async function() {
+    var email = document.getElementById('new-user-email')?.value.trim();
+    var password = document.getElementById('new-user-password')?.value;
+    var full_name = document.getElementById('new-user-name')?.value.trim();
+    var role = document.getElementById('new-user-role')?.value;
+    var errEl = document.getElementById('add-user-error');
+    if (errEl) errEl.textContent = '';
+    if (!email || !password) { if (errEl) errEl.textContent = 'Email та пароль обовʼязкові'; return; }
+    if (password.length < 6) { if (errEl) errEl.textContent = 'Пароль мінімум 6 символів'; return; }
+    try {
+      await window.localAPI.fetch('/users', { method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ email, password, full_name, role }) });
+      // Reset form
+      ['new-user-email','new-user-password','new-user-name'].forEach(function(id) {
+        var el = document.getElementById(id); if (el) el.value = '';
+      });
+      var form = document.getElementById('admin-add-user-form');
+      if (form) form.classList.add('hidden');
+      await refreshAdminUsers();
+    } catch(e) { if (errEl) errEl.textContent = e.message; }
+  });
+
   document.getElementById('admin-upload-unit-sel')?.addEventListener('change', async function(e) {
     await refreshAdminFilesList(e.target.value);
   });
 
-  // Folder input change — bulk upload
   document.getElementById('admin-folder-input')?.addEventListener('change', async function(e) {
-    var files    = e.target.files;
-    var sel      = document.getElementById('admin-upload-unit-sel');
-    var unitId   = sel?.value;
+    var files = e.target.files;
+    var sel = document.getElementById('admin-upload-unit-sel');
+    var unitId = sel?.value;
     var unitName = sel?.options[sel.selectedIndex]?.text || '';
 
     if (!unitId) { alert('Спочатку оберіть підрозділ'); e.target.value = ''; return; }
     if (!files?.length) return;
 
-    var prog     = document.getElementById('admin-upload-progress');
-    var fill     = document.getElementById('admin-progress-fill');
+    var prog = document.getElementById('admin-upload-progress');
+    var fill = document.getElementById('admin-progress-fill');
     var progText = document.getElementById('admin-progress-text');
 
     if (prog) prog.style.display = 'block';
