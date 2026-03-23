@@ -285,28 +285,45 @@ function initMap(){
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
+  clusterLayer = L.markerClusterGroup({ showCoverageOnHover:false, maxClusterRadius:60 });
+  map.addLayer(clusterLayer);
+
+  // Завантажуємо межі Харківської області — один fetch
   fetch('data/kharkiv_bounds.geojson')
     .then(r=>r.ok?r.json():Promise.reject('no geojson'))
     .then(gj=>{
+      const regionCoords = gj.features[0].geometry.coordinates[0];
+
+      // Підганяємо карту по межах
       const g = L.geoJSON(gj);
       const bb = g.getBounds();
-      if (bb.isValid()) map.fitBounds(bb.pad(0.05));
+      if (bb.isValid()) map.fitBounds(bb.pad(0.02));
+
+      // Межа області — тонка синя лінія
+      L.geoJSON(gj, {
+        style: { color:'#1e40af', weight:1.5, opacity:0.7, fill:false }
+      }).addTo(map);
+
+      // Сіра маска за межами — інвертований полігон
+      const world = [[-90,-180],[-90,180],[90,180],[90,-180],[-90,-180]];
+      const maskCoords = [world, regionCoords];
+      const maskGeoJSON = {
+        type:'Feature',
+        geometry:{ type:'Polygon', coordinates: maskCoords }
+      };
+      L.geoJSON(maskGeoJSON, {
+        style:{
+          fillColor:'#9ca3af',
+          fillOpacity:0.55,
+          stroke:false
+        }
+      }).addTo(map);
     })
     .catch(()=>{
-      map.fitBounds(KHARKIV_BOUNDS);
+      map.setView([49.9935,36.2304], 9);
     });
 
-  clusterLayer = L.markerClusterGroup({ showCoverageOnHover:false, maxClusterRadius:60 });
-  map.addLayer(clusterLayer);
-  // Червоний контур меж Харківської області
-  fetch('data/kharkiv_bounds.geojson')
-    .then(r=>r.json())
-    .then(gj=>{
-      L.geoJSON(gj, { style:{ color:'red', weight:2, fill:false } }).addTo(map);
-    })
-    .catch(()=>{});
-
-  // fallback центр Харкова, якщо geojson не спрацює
+  // fallback центр Харкова
   map.setView([49.9935,36.2304], 9);
 }
 

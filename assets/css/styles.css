@@ -833,19 +833,98 @@ body:not(.dark) .check-card { background: #1e40af; }
 /* ============================================================
    RESPONSIVE
    ============================================================ */
+
+/* --- Tablet (≤900px) --- */
 @media (max-width: 900px) {
-  .main-content { grid-template-columns: 1fr; grid-template-rows: 60vh 1fr; }
-  .sidebar { border-left: none; border-top: 1px solid var(--border); }
+  .main-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: 58vh 1fr;
+  }
+  .sidebar {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    max-height: 42vh;
+    overflow-y: auto;
+  }
+  .chart-box { height: 180px; }
+  .app-modal { max-width: 95vw; max-height: 90vh; }
+  .full-modal { width: 95vw; max-height: 90vh; }
 }
+
+/* --- Large phone (≤640px) --- */
 @media (max-width: 640px) {
-  .app-header { padding: 0 10px; }
-  .brand-title-main { font-size: 10px; }
+  /* Header */
+  .app-header { padding: 0 8px; height: 52px; gap: 6px; }
+  .brand-logo { width: 32px; height: 32px; }
+  .brand-title-main { font-size: 9px; letter-spacing: 0; }
   .brand-title-sub { display: none; }
-  .brand-logo { width: 34px; height: 34px; }
-  .header-search { width: 130px; }
-  .header-search:focus { width: 160px; }
-  .header-actions .user-email { display: none; }
+  .header-search { width: 110px; font-size: 12px; }
+  .header-search:focus { width: 140px; }
+  .user-email { display: none !important; }
+  .icon-btn { padding: 5px 6px; font-size: 14px; min-width: 32px; min-height: 32px; }
+  .action-btn { padding: 5px 8px; font-size: 11px; }
+
+  /* Filter bar */
+  .filter-bar { padding: 5px 8px; gap: 6px; }
+  .filter-group label { font-size: 10px; }
+  .filter-bar select { font-size: 11px; padding: 4px 20px 4px 7px; }
+
+  /* Map + sidebar */
+  .main-content { grid-template-rows: 52vh 1fr; }
+  .sidebar { max-height: 44vh; }
+
+  /* KPI */
   .kpi-value { font-size: 18px; }
+  .kpi-label { font-size: 9px; }
+  .kpi-grid { gap: 6px; }
+
+  /* Chart */
+  .chart-box { height: 160px; }
+
+  /* Modals — full screen on phone */
+  .app-modal, .full-modal, .wide-modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    max-height: 92vh;
+    border-radius: 12px 12px 0 0;
+    margin: 0;
+    position: fixed;
+    bottom: 0;
+    top: auto;
+  }
+  dialog[open] { margin: 0; padding: 0; }
+
+  /* Admin table scroll */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .admin-table { min-width: 500px; }
+
+  /* Settings */
+  .settings-table-wrap { overflow-x: auto; }
+  .settings-table { min-width: 480px; }
+  .settings-toolbar { flex-wrap: wrap; gap: 6px; }
+
+  /* Data controls */
+  .data-controls-inner { flex-direction: column; gap: 8px; }
+  .control-group { flex-wrap: wrap; gap: 6px; }
+  .url-input { width: 100% !important; }
+
+  /* Sidebar unit */
+  .su-tab { font-size: 11px; padding: 8px 6px; }
+  .sidebar-unit-header { padding: 10px; }
+}
+
+/* --- Small phone (≤420px) --- */
+@media (max-width: 420px) {
+  .brand-titles { display: none; }
+  .app-header { justify-content: space-between; }
+  .header-search { width: 90px; }
+  .header-search:focus { width: 120px; }
+  .main-content { grid-template-rows: 50vh 1fr; }
+  .kpi-grid { grid-template-columns: repeat(3,1fr); }
+  .kpi-value { font-size: 16px; }
+  .kpi-card { padding: 8px 4px; }
+  .filter-bar select { font-size: 10px; padding: 4px 16px 4px 5px; }
+  .action-btn span, .action-btn { font-size: 10px; padding: 4px 6px; }
 }
 
 /* Print */
