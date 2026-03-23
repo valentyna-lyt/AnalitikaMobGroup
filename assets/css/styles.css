@@ -245,6 +245,12 @@ body.dark .filter-bar select option { background: #1e1b4b; }
   border-bottom: 1px solid var(--border);
   background: var(--card);
 }
+.chart-box {
+  height: 220px;
+  padding: 8px 4px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(3,1fr);

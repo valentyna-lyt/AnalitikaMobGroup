@@ -540,12 +540,14 @@ function updateLevelChart(){
     var top = rows.slice(0, Math.min(5, rows.length));
     var labels = top.map(function(r){
       const name = r.name || '—';
+      const MAX = 18;
       if (name.includes('(')){
         const base = name.substring(0, name.indexOf('(')).trim();
-        const extra = name.substring(name.indexOf('(')).trim();
-        return [base, extra];
+        const extra = name.substring(name.indexOf('('), name.indexOf(')')+1).trim();
+        const shortBase = base.length > MAX ? base.substring(0, MAX) + '…' : base;
+        return [shortBase, extra];
       }
-      return name;
+      return name.length > MAX ? name.substring(0, MAX) + '…' : name;
     });
     var values = top.map(function(r){ return Number(r.ytd||0); });
     if (window.__levelChart) { window.__levelChart.destroy(); }
@@ -563,14 +565,14 @@ function updateLevelChart(){
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { left: 20, right: 10, top: 10, bottom: 10 } },
+        layout: { padding: { left: 0, right: 10, top: 5, bottom: 5 } },
         plugins: {
           legend: { display: false },
           title: { display: true, text: 'ТОП-5 за рік', align:'center', color: '#1f2937', font:{size:12, weight:'bold'} }
         },
         scales: {
           x: { ticks: { color: '#4b5563', font:{size:10} }, beginAtZero: true, grid: { color: 'rgba(0,0,0,0.06)' } },
-          y: { ticks: { color: '#374151', font:{size:10}, autoSkip: false }, grid: { display: false } }
+          y: { ticks: { color: '#374151', font:{size:9}, autoSkip: false, maxRotation: 0 }, grid: { display: false } }
         }
       }
     });
