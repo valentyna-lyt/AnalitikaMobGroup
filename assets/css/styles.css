@@ -834,6 +834,38 @@ body:not(.dark) .check-card { background: #1e40af; }
    RESPONSIVE
    ============================================================ */
 
+/* --- Auth form mobile --- */
+@media (max-width: 640px) {
+  #auth-overlay {
+    padding: 16px;
+    align-items: flex-start;
+    padding-top: max(40px, env(safe-area-inset-top, 20px));
+    overflow-y: auto;
+  }
+  .auth-box {
+    padding: 24px 20px;
+    border-radius: 12px;
+  }
+  .auth-logo img { width: 56px; }
+  .auth-box h2 { font-size: 15px; }
+  .auth-subtitle { font-size: 11px; margin-bottom: 14px; }
+  .form-group input {
+    padding: 11px 12px;
+    font-size: 16px; /* prevents iOS zoom on focus */
+    border-radius: 7px;
+  }
+  #auth-login-form button[type=submit] {
+    padding: 13px;
+    font-size: 15px;
+  }
+  .link-secondary { font-size: 12px; display: block; margin-top: 8px; }
+}
+
+@media (max-width: 420px) {
+  .auth-box { padding: 20px 16px; }
+  .auth-logo img { width: 48px; }
+}
+
 /* --- Tablet (≤900px) --- */
 @media (max-width: 900px) {
   .main-content {
