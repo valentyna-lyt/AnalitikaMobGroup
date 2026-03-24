@@ -343,16 +343,38 @@ function setDvMeta(filename, meta) {
   metaEl.innerHTML = items.join('');
 }
 
+// ── History state: intercept browser back button when viewer is open ──────
+var _dvPushedState = false;
+window.addEventListener('popstate', function() {
+  var overlay = document.getElementById('doc-viewer-overlay');
+  if (overlay && !overlay.classList.contains('hidden')) {
+    _dvPushedState = false;
+    overlay.classList.add('hidden');
+    document.body.style.overflow = '';
+    var content = document.getElementById('dv-content');
+    if (content) content.innerHTML = '';
+  }
+});
+
+function _dvOpen() {
+  if (!_dvPushedState) {
+    history.pushState({ docViewer: true }, '');
+    _dvPushedState = true;
+  }
+}
+
 function openImgViewer(url, title, meta) {
   var overlay = document.getElementById('doc-viewer-overlay');
   var titleEl = document.getElementById('dv-title');
   var content = document.getElementById('dv-content');
   if (!overlay || !content) return;
+  _dvOpen();
   if (titleEl) titleEl.textContent = title || '';
   setDvMeta(title, meta);
   content.innerHTML = '<img src="' + url + '" alt="' + escHTML(title||'') + '" class="dv-img">';
   overlay.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+  if (window._reattachContentWatermark) window._reattachContentWatermark();
 }
 
 // ============================================================
@@ -365,6 +387,10 @@ function closeDocViewer() {
   document.body.style.overflow = '';
   var content = document.getElementById('dv-content');
   if (content) content.innerHTML = '';
+  if (_dvPushedState) {
+    _dvPushedState = false;
+    history.back();
+  }
 }
 
 async function openDocViewer(blobUrl, filename, storagePath, meta) {
@@ -372,6 +398,7 @@ async function openDocViewer(blobUrl, filename, storagePath, meta) {
   var titleEl = document.getElementById('dv-title');
   var content = document.getElementById('dv-content');
   if (!overlay || !content) return;
+  _dvOpen();
   if (titleEl) titleEl.textContent = filename || 'Документ';
   // Build meta with current user added
   var fullMeta = Object.assign({}, meta || {}, {
@@ -382,26 +409,28 @@ async function openDocViewer(blobUrl, filename, storagePath, meta) {
   overlay.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 
+  function rewm() { if (window._reattachContentWatermark) window._reattachContentWatermark(); }
+
   try {
     var ext = (filename || '').split('.').pop().toLowerCase();
 
     if (ext === 'docx' || ext === 'doc') {
       if (typeof mammoth === 'undefined') {
         content.innerHTML = '<div class="error-msg" style="padding:20px">Бібліотека mammoth не завантажилась. Оновіть сторінку.</div>';
-        return;
+        rewm(); return;
       }
       // For DOCX we need fresh blob (mammoth uses arrayBuffer)
       var freshBlob = await window.localAPI.getBlob('/view/' + storagePath);
       var buf = await freshBlob.arrayBuffer();
       var result = await mammoth.convertToHtml({ arrayBuffer: buf });
       content.innerHTML = '<div class="docx-content">' + result.value + '</div>';
-      return;
+      rewm(); return;
     }
 
     if (ext === 'pdf') {
       if (typeof pdfjsLib === 'undefined') {
         content.innerHTML = '<div class="error-msg" style="padding:20px">PDF.js не завантажився. Оновіть сторінку.</div>';
-        return;
+        rewm(); return;
       }
       pdfjsLib.GlobalWorkerOptions.workerSrc =
         'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -418,23 +447,25 @@ async function openDocViewer(blobUrl, filename, storagePath, meta) {
         content.appendChild(canvas);
         await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
       }
-      return;
+      rewm(); return;
     }
 
     if (ext === 'xlsx' || ext === 'xls') {
       content.innerHTML = '<div class="doc-info-msg">📊 Таблиця Excel<br><small>Перегляд таблиць у браузері не підтримується.<br>Зверніться до адміністратора.</small></div>';
-      return;
+      rewm(); return;
     }
 
     if (ext === 'pptx' || ext === 'ppt') {
       content.innerHTML = '<div class="doc-info-msg">📑 Презентація PowerPoint<br><small>Перегляд презентацій у браузері не підтримується.<br>Зверніться до адміністратора.</small></div>';
-      return;
+      rewm(); return;
     }
 
     content.innerHTML = '<div class="doc-info-msg">📎 ' + escHTML(filename || 'Файл') + '<br><small>Перегляд цього формату недоступний.</small></div>';
+    rewm();
 
   } catch(e) {
     content.innerHTML = '<div class="error-msg" style="padding:20px">⚠️ ' + escHTML(e.message) + '</div>';
+    rewm();
   }
 }
 

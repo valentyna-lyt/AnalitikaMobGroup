@@ -56,20 +56,25 @@
     return wm;
   }
 
+  function attachContentWatermark() {
+    var content = document.getElementById('dv-content');
+    if (!content) return;
+    var oldCw = content.querySelector('.doc-watermark-content');
+    if (oldCw) oldCw.remove();
+    content.appendChild(buildWatermark('doc-watermark-content'));
+  }
+
   function attachWatermark(overlay) {
     // 1. Overlay-level watermark (light text — visible on dark background areas)
     var old = overlay.querySelector(':scope > .doc-watermark');
     if (old) old.remove();
     overlay.appendChild(buildWatermark());
-
-    // 2. Content-level watermark (dark text — visible on white docx pages and PDF)
-    var content = document.getElementById('dv-content');
-    if (content) {
-      var oldCw = content.querySelector('.doc-watermark-content');
-      if (oldCw) oldCw.remove();
-      content.appendChild(buildWatermark('doc-watermark-content'));
-    }
+    // Note: content-level watermark is attached via window._reattachContentWatermark()
+    // called from files.js AFTER document content is rendered (innerHTML changes wipe it otherwise)
   }
+
+  // Exposed so files.js can call after async content renders
+  window._reattachContentWatermark = attachContentWatermark;
 
   // ── 5. Watch doc-viewer-overlay for visibility changes ───────────────────
   var overlay = document.getElementById('doc-viewer-overlay');
