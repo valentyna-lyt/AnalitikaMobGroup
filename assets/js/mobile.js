@@ -83,18 +83,6 @@
     });
   }
 
-  // ── Map tap → collapse sheet (but NOT when tapping inside a popup) ──────────
-  function setupMapCollapse() {
-    var mapEl = document.getElementById('map');
-    if (!mapEl) return;
-    mapEl.addEventListener('click', function (e) {
-      if (!isSheetOpen()) return;
-      if (e.target.closest('.leaflet-popup')) return; // popup buttons must stay clickable
-      collapseSheet();
-      closeFilterPanel();
-    });
-  }
-
   // ── Auto-expand when unit sidebar becomes visible ───────────────────────────
   function setupAutoExpand() {
     if (!sidebarUnit) return;
@@ -162,7 +150,6 @@
     setupHandleTap();
     setupTouchDrag();
     setupAutoExpand();
-    setupMapCollapse();
     updateSheetTitle();
   }
 
