@@ -29,16 +29,22 @@ window.loadSidebarChecks = async function(unitId, unitName, unitRow) {
   try {
     var items = await loadInspectionsForUnit(unitId);
 
-    // Inject CSV-derived baseline record (last_check / inspectors from unit data)
+    // Inject CSV-derived baseline record (last_check / last_inspector from unit data)
     if (unitRow && unitRow.last_check) {
+      // Convert DD.MM.YYYY → YYYY-MM-DD so Date() can parse it
+      var rawDate = String(unitRow.last_check);
+      var ddmm = rawDate.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+      var isoDate = ddmm
+        ? ddmm[3] + '-' + ('0'+ddmm[2]).slice(-2) + '-' + ('0'+ddmm[1]).slice(-2)
+        : rawDate;
       var alreadyInDB = items.some(function(c) {
-        return c.case_date && c.case_date.slice(0, 10) === String(unitRow.last_check).slice(0, 10) && !c._fromCSV;
+        return c.case_date && c.case_date.slice(0, 10) === isoDate.slice(0, 10) && !c._fromCSV;
       });
       if (!alreadyInDB) {
         items = [{
           id: '_csv_' + unitId,
-          case_date: unitRow.last_check,
-          title: unitRow.inspectors || '—',
+          case_date: isoDate,
+          title: unitRow.last_inspector || unitRow.inspectors || '—',
           description: null,
           _fromCSV: true
         }].concat(items);

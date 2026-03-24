@@ -341,7 +341,10 @@ function renderLayers(){
 
 function formatDate(str){
   if (!str) return '—';
-  const d = new Date(str);
+  let d;
+  const ddmm = String(str).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (ddmm) d = new Date(Number(ddmm[3]), Number(ddmm[2])-1, Number(ddmm[1]));
+  else d = new Date(str);
   if (isNaN(d)) return str;
   const months = ['січня','лютого','березня','квітня','травня','червня',
                   'липня','серпня','вересня','жовтня','листопада','грудня'];
@@ -426,7 +429,7 @@ function popupHTML(d){
         <div class="popup-stat"><span class="ps-val">${ytd}</span><span class="ps-lbl">за рік</span></div>
         <div class="popup-stat"><span class="ps-val">${lastCheck}</span><span class="ps-lbl">остання</span></div>
       </div>
-      ${inspector ? `<div class="popup-inspector">Інспектор: ${inspector}</div>` : ''}
+      ${inspector ? `<div class="popup-inspector">Мобільна група: ${inspector}</div>` : ''}
       <button class="popup-detail-btn" data-unit-id="${d.id||''}" data-unit-name="${safeName}" onclick="window.openUnitSidebar&&window.openUnitSidebar(this.dataset)">📋 Файли та справи</button>
     </div>
   </div>`;
