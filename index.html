@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1e3a8a">
-  <title>КОНТРОЛЬ ЗА ДІЛЬНІСТЮ ПІДРОЗДІЛІВ</title>
+  <title>КОНТРОЛЬ ЗА ДІЯЛЬНІСТЮ ПІДРОЗДІЛІВ</title>
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" crossorigin="anonymous">
@@ -213,7 +213,7 @@
     <img src="assets/img/emblem.png" alt="Емблема" class="brand-logo">
     <div class="brand-titles">
       <div class="brand-title-main">УПРАВЛІННЯ ГОЛОВНОЇ ІНСПЕКЦІЇ ГУНП В ХАРКІВСЬКІЙ ОБЛАСТІ</div>
-      <div class="brand-title-sub">КОНТРОЛЬ ЗА ДІЛЬНІСТЮ ПІДРОЗДІЛІВ</div>
+      <div class="brand-title-sub">КОНТРОЛЬ ЗА ДІЯЛЬНІСТЮ ПІДРОЗДІЛІВ</div>
     </div>
   </div>
   <div class="header-right">
@@ -230,57 +230,75 @@
   </div>
 </header>
 
-<!-- Mobile filter bar -->
-<div class="filter-bar">
-  <div class="filter-group">
-    <label>Рівень:</label>
-    <select id="filter-level">
-      <option value="">Всі</option>
-      <option value="ГУНП">ГУНП</option>
-      <option value="ХРУП">ХРУП</option>
-      <option value="ВП">ВП</option>
-      <option value="ВнП">ВнП</option>
-    </select>
-  </div>
-  <div class="filter-group">
-    <label>Підпор.:</label>
-    <select id="filter-parent"><option value="">Всі</option></select>
-  </div>
-  <div class="filter-group">
-    <label>Період:</label>
-    <select id="filter-period-sel">
-      <option value="today">Сьогодні</option>
-      <option value="m30">30 днів</option>
-      <option value="ytd">Рік</option>
-    </select>
-  </div>
-  <div class="filter-group">
-    <label>Карта:</label>
-    <select id="filter-mode-sel">
-      <option value="points">Точки</option>
-      <option value="clusters">Кластери</option>
-      <option value="heat">Теплова</option>
-    </select>
-  </div>
-</div>
-
 <main class="main-content">
-  <div class="map-container">
-    <div id="map"></div>
-    <div class="map-loading hidden" id="mapLoading">
-      <div class="spinner"></div>
-      <span>Завантаження…</span>
+  <div class="map-column">
+    <div class="map-container">
+      <div id="map"></div>
+      <div class="map-loading hidden" id="mapLoading">
+        <div class="spinner"></div>
+        <span>Завантаження…</span>
+      </div>
+    </div>
+    <!-- Filter bar below map -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label>Рівень:</label>
+        <select id="filter-level">
+          <option value="">Всі</option>
+          <option value="ГУНП">ГУНП</option>
+          <option value="ХРУП">ХРУП</option>
+          <option value="ВП">ВП</option>
+          <option value="ВнП">ВнП</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Підпор.:</label>
+        <select id="filter-parent"><option value="">Всі</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Період:</label>
+        <select id="filter-period-sel">
+          <option value="today">Сьогодні</option>
+          <option value="m30">30 днів</option>
+          <option value="ytd">Рік</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Карта:</label>
+        <select id="filter-mode-sel">
+          <option value="points">Точки</option>
+          <option value="clusters">Кластери</option>
+          <option value="heat">Теплова</option>
+        </select>
+      </div>
     </div>
   </div>
 
   <aside class="sidebar" id="sidebar">
-    <!-- Default view: KPI + chart + top units -->
+    <!-- Default view: KPI + units table -->
     <div id="sidebar-default">
       <div id="kpi-box"></div>
-      <div class="chart-box"><canvas id="levelChart"></canvas></div>
-      <div class="top-units-section" id="top-units-section" style="display:none">
-        <h4>ТОП-5 за перевірками (рік)</h4>
-        <div id="topUnitsList" class="top-units-list"></div>
+      <div class="units-table-toolbar">
+        <input type="search" id="units-table-search" placeholder="🔍 Пошук підрозділу…">
+        <select id="units-table-level-filter">
+          <option value="">Всі рівні</option>
+          <option value="ГУНП">ГУНП</option>
+          <option value="ХРУП">ХРУП</option>
+          <option value="ВП">ВП</option>
+          <option value="ВнП">ВнП</option>
+        </select>
+      </div>
+      <div class="units-table-wrap">
+        <table class="units-main-table">
+          <thead>
+            <tr>
+              <th>Підрозділ</th>
+              <th title="Особовий склад">Ос. склад</th>
+              <th title="Перевірок з початку року">Перевірок (рік)</th>
+            </tr>
+          </thead>
+          <tbody id="units-main-tbody"></tbody>
+        </table>
       </div>
     </div>
 

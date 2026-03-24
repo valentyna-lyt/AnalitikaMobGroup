@@ -623,35 +623,35 @@ function bindUI(){
   document.querySelectorAll('input[name="period"]').forEach(r=>{
     r.addEventListener('change', e=>{
       state.filters.period = e.target.value;
-      renderLayers(); updateKPI(); updateLevelChart();
+      renderLayers(); updateKPI(); updateLevelChart(); renderUnitsTable && renderUnitsTable();
     });
   });
 
   q('filter-level')?.addEventListener('change', e=>{
     state.filters.level = e.target.value || '';
     refreshParents();
-    renderLayers(); updateKPI(); updateLevelChart();
+    renderLayers(); updateKPI(); updateLevelChart(); renderUnitsTable && renderUnitsTable();
   });
   q('filter-parent')?.addEventListener('change', e=>{
     state.filters.parent = e.target.value || '';
-    renderLayers(); updateKPI(); updateLevelChart();
+    renderLayers(); updateKPI(); updateLevelChart(); renderUnitsTable && renderUnitsTable();
   });
   q('search-name')?.addEventListener('input', debounce(e=>{
     state.filters.query = e.target.value || '';
-    renderLayers(); updateKPI(); updateLevelChart();
+    renderLayers(); updateKPI(); updateLevelChart(); renderUnitsTable && renderUnitsTable();
   }, 250));
 
   q('btn-load-demo')?.addEventListener('click', async ()=>{
-    await loadDemo(); renderLayers(); updateKPI(); updateLevelChart(); refreshParents();
+    await loadDemo(); renderLayers(); updateKPI(); updateLevelChart(); renderUnitsTable && renderUnitsTable(); refreshParents();
   });
   q('file-input')?.addEventListener('change', async (e)=>{
-    if (e.target.files?.length){ await loadFromFile(e.target.files[0]); renderLayers(); updateKPI(); updateLevelChart(); refreshParents(); }
+    if (e.target.files?.length){ await loadFromFile(e.target.files[0]); renderLayers(); updateKPI(); updateLevelChart(); renderUnitsTable && renderUnitsTable(); refreshParents(); }
   });
   q('btn-load-url')?.addEventListener('click', async ()=>{
     const url = q('url-input')?.value?.trim();
     if (!url) return;
     await loadFromURL(url); saveSettings();
-    renderLayers(); updateKPI(); updateLevelChart(); refreshParents();
+    renderLayers(); updateKPI(); updateLevelChart(); renderUnitsTable && renderUnitsTable(); refreshParents();
   });
 
   q('btn-mypos')?.addEventListener('click', locateMe);
@@ -692,7 +692,7 @@ async function setupAutoRefresh(){
   state.refreshTimer = setInterval(async ()=>{
     try {
       await loadFromURL(state.dataSource.url);
-      renderLayers(); updateKPI(); updateLevelChart();
+      renderLayers(); updateKPI(); updateLevelChart(); renderUnitsTable && renderUnitsTable();
       console.log('Auto-refreshed at', new Date().toISOString());
     } catch(e){ console.warn('Auto-refresh failed', e); }
   }, ms);
@@ -825,7 +825,107 @@ async function boot(){
   renderLayers();
   updateKPI();
   updateLevelChart();
+  updateUnitsTable();
 }
 
 boot().catch(e=>console.warn('Boot failed', e));
+
+// ============================================================
+// UNITS TABLE (right sidebar — all units, personnel, checks)
+// ============================================================
+
+var _unitsTableStats = {};
+
+async function loadUnitsTableStats() {
+  try {
+    var data = await window.localAPI.fetch('/unit-stats');
+    _unitsTableStats = data || {};
+  } catch(e) { _unitsTableStats = {}; }
+}
+
+function renderUnitsTable() {
+  var tbody = document.getElementById('units-main-tbody');
+  if (!tbody) return;
+
+  var rows = Array.isArray(state.data) ? state.data : [];
+  var search = (document.getElementById('units-table-search')?.value || '').toLowerCase();
+  var levelFilter = document.getElementById('units-table-level-filter')?.value || '';
+
+  var filtered = rows.filter(function(r) {
+    if (levelFilter && r.level !== levelFilter) return false;
+    if (search && !(r.name||'').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px">Підрозділів не знайдено</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(function(r) {
+    var stats = _unitsTableStats[String(r.id)] || {};
+    // checks: prefer DB count, fallback to ytd from state
+    var checksDb = stats.checks_ytd;
+    var checksVal = (checksDb != null) ? checksDb : Number(r.ytd || 0);
+    var personnel = stats.personnel != null ? stats.personnel : '—';
+    var canEdit = window.currentUser && window.currentUser.role === 'admin';
+
+    return '<tr data-id="' + escHTML(String(r.id)) + '" data-name="' + escHTML(r.name||'') + '">' +
+      '<td><span class="unit-row-name">' + escHTML(r.name||'—') + '</span>' +
+        (r.level ? '<span class="unit-level-tag">' + escHTML(r.level) + '</span>' : '') +
+      '</td>' +
+      '<td class="unit-personnel-cell' + (canEdit ? ' editable' : '') + '" data-id="' + escHTML(String(r.id)) + '">' +
+        escHTML(String(personnel)) +
+      '</td>' +
+      '<td><span class="unit-checks-badge' + (checksVal > 0 ? ' has-checks' : '') + '">' + checksVal + '</span></td>' +
+    '</tr>';
+  }).join('');
+
+  // Row click → open unit sidebar
+  tbody.querySelectorAll('tr').forEach(function(tr) {
+    tr.addEventListener('click', function(e) {
+      if (e.target.classList.contains('unit-personnel-cell') && e.target.classList.contains('editable')) return;
+      var uid = tr.dataset.id;
+      var uname = tr.dataset.name;
+      if (uid && window.openUnitSidebar) window.openUnitSidebar({ unitId: uid, unitName: uname });
+    });
+  });
+
+  // Admin: click on personnel cell to edit
+  tbody.querySelectorAll('.unit-personnel-cell.editable').forEach(function(cell) {
+    cell.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      var uid = cell.dataset.id;
+      var cur = _unitsTableStats[uid]?.personnel ?? '';
+      var val = prompt('Кількість особового складу:', cur);
+      if (val === null) return;
+      var num = parseInt(val);
+      if (isNaN(num) || num < 0) { alert('Введіть коректне число'); return; }
+      try {
+        await window.localAPI.fetch('/unit-stats/' + encodeURIComponent(uid), {
+          method: 'PATCH', body: JSON.stringify({ personnel_count: num })
+        });
+        _unitsTableStats[uid] = _unitsTableStats[uid] || {};
+        _unitsTableStats[uid].personnel = num;
+        renderUnitsTable();
+      } catch(err) { alert('Помилка: ' + err.message); }
+    });
+  });
+}
+
+async function updateUnitsTable() {
+  await loadUnitsTableStats();
+  renderUnitsTable();
+}
+
+// Re-render on search/filter
+document.addEventListener('DOMContentLoaded', function() {
+  var searchEl = document.getElementById('units-table-search');
+  var levelEl = document.getElementById('units-table-level-filter');
+  if (searchEl) searchEl.addEventListener('input', renderUnitsTable);
+  if (levelEl) levelEl.addEventListener('change', renderUnitsTable);
+});
+
+// Expose so other modules can trigger refresh
+window.updateUnitsTable = updateUnitsTable;
 
