@@ -1030,6 +1030,10 @@ body.dark .form-group textarea, body.dark .form-control {
 .no-data  { text-align: center; color: var(--muted); padding: 16px; font-size: 13px; }
 .error-msg { color: var(--bad); font-size: 12px; padding: 6px 10px; background: rgba(220,38,38,0.07); border-radius: 6px; }
 
+/* ── Mobile-only elements (hidden on desktop) ── */
+.sheet-handle-bar { display: none; }
+.mobile-bottom-nav { display: none; }
+
 /* ============================================================
    RESPONSIVE
    ============================================================ */
@@ -1228,94 +1232,210 @@ body.dark .check-card { background: #1e3a6e; }
 .curator-del-btn:hover { opacity: 1; background: rgba(239,68,68,0.1); }
 
 /* ============================================================
-   TABLET (≤900px)
+   TABLET (≤900px) — two-panel stacked
    ============================================================ */
 @media (max-width: 900px) {
   .main-content {
     grid-template-columns: 1fr;
     grid-template-rows: 55vh 1fr;
   }
-  .map-column { overflow: visible; }
   .sidebar {
     border-left: none;
     border-top: 1px solid var(--border);
     overflow-y: auto;
-    /* inner panels: let sidebar container scroll */
   }
   #sidebar-default { height: auto; overflow-y: visible; }
   .units-table-wrap { overflow-y: visible; max-height: none; }
   .su-panel { overflow-y: visible; }
-
-  .chart-box { height: 180px; }
   .app-modal { max-width: 95vw; max-height: 90vh; }
   .full-modal { width: 95vw; max-height: 90vh; }
 }
 
 /* ============================================================
-   LARGE PHONE (≤640px)
+   PHONE (≤640px) — PWA bottom sheet layout
    ============================================================ */
 @media (max-width: 640px) {
-
-  /* ── Header ── */
-  .app-header { padding: 0 10px; height: 52px; gap: 6px; }
-  .brand-logo { width: 34px; height: 34px; }
-  .brand-title-main { font-size: 9px; letter-spacing: 0; }
-  .brand-title-sub { display: none; }
-  .header-search { width: 100px; font-size: 13px; }
-  .header-search:focus { width: 130px; }
-  .user-email { display: none !important; }
-  .icon-btn { padding: 6px 7px; font-size: 15px; min-width: 36px; min-height: 36px; }
-  .action-btn { padding: 6px 10px; font-size: 11px; }
 
   /* ── Auth ── */
   #auth-overlay { padding: 12px; padding-top: max(20px, env(safe-area-inset-top, 12px)); }
   .auth-card { max-width: 100%; border-radius: 14px; }
   .auth-brand { padding: 22px 18px 18px; }
-  .auth-emblem { width: 62px; height: 62px; margin-bottom: 12px; }
+  .auth-emblem { width: 60px; height: 60px; margin-bottom: 10px; }
   .auth-org { font-size: 10px; }
   .auth-org-sub { font-size: 10px; }
-  .auth-project { font-size: 12px; }
+  .auth-project { font-size: 12px; padding-top: 10px; }
   .auth-form-wrap { padding: 20px 18px 24px; }
-  .auth-input { font-size: 16px; } /* prevents iOS zoom */
+  .auth-input { font-size: 16px; } /* prevents iOS auto-zoom */
   .auth-submit-btn { font-size: 15px; }
 
-  /* ── Filter bar ── */
-  .filter-bar { padding: 5px 8px; gap: 5px; flex-wrap: wrap; }
-  .filter-group { gap: 4px; }
-  .filter-group label { font-size: 10px; }
-  .filter-bar select { font-size: 11px; padding: 4px 18px 4px 6px; }
+  /* ── Header — compact ── */
+  .app-header { padding: 0 10px; height: 50px; gap: 6px; }
+  .brand-logo { width: 32px; height: 32px; }
+  .brand-title-main { font-size: 9px; letter-spacing: 0; }
+  .brand-title-sub { display: none; }
+  .header-search { display: none; } /* search via units table in sheet */
+  .user-email { display: none !important; }
+  .icon-btn { padding: 6px 7px; font-size: 15px; min-width: 36px; min-height: 36px; }
+  .action-btn { padding: 6px 9px; font-size: 11px; }
 
-  /* ── Map + Sidebar layout ── */
-  .main-content { grid-template-rows: 48vh 1fr; }
-  .sidebar { overflow-y: auto; }
-  #sidebar-default { height: auto; overflow-y: visible; }
-  .units-table-wrap { overflow-y: visible; max-height: none; }
+  /* ── Main layout — map fills everything ── */
+  .main-content {
+    display: block;
+    position: relative;
+    grid-template-rows: unset;
+    grid-template-columns: unset;
+  }
+  .map-column {
+    position: absolute;
+    inset: 0;
+    /* Leave room at bottom for handle bar + bottom nav */
+    padding-bottom: calc(54px + 56px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+  }
+  .map-column .map-container { flex: 1; min-height: 0; }
 
-  /* ── KPI ── */
-  .kpi-card { padding: 8px 4px; }
+  /* ── Filter bar → fixed overlay triggered by ⚙️ nav button ── */
+  .filter-bar {
+    position: fixed;
+    top: 50px; left: 0; right: 0;
+    z-index: 450;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    transform: translateY(-120%);
+    transition: transform 0.25s ease;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .filter-bar.mobile-filter-open {
+    transform: translateY(0);
+  }
+
+  /* ── Data controls — hidden on mobile ── */
+  .data-controls { display: none; }
+
+  /* ── Sidebar → bottom sheet ── */
+  .sidebar {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    z-index: 400;
+    border-left: none;
+    border-top: none;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -4px 32px rgba(0,0,0,0.22);
+    /* Full sheet height (excluding header + bottom nav) */
+    height: calc(100svh - 50px - 56px - env(safe-area-inset-bottom, 0px));
+    height: calc(100vh - 50px - 56px - env(safe-area-inset-bottom, 0px));
+    /* Collapsed: only handle visible */
+    transform: translateY(calc(100% - 54px));
+    transition: transform 0.36s cubic-bezier(0.32, 0.72, 0, 1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    overflow-y: visible;
+  }
+  .sidebar.sheet-open { transform: translateY(0); }
+
+  /* ── Sheet handle bar ── */
+  .sheet-handle-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 8px 16px 10px;
+    background: var(--sidebar-bg);
+    border-radius: 18px 18px 0 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 54px;
+    justify-content: center;
+  }
+  .sheet-grab {
+    width: 38px; height: 4px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 2px;
+    margin-bottom: 7px;
+    flex-shrink: 0;
+  }
+  body.dark .sheet-grab { background: rgba(255,255,255,0.22); }
+  #sheetTitle {
+    font-size: 13px; font-weight: 600; color: var(--fg); line-height: 1;
+  }
+
+  /* ── Sidebar content — scrollable inside sheet ── */
+  #sidebar-default {
+    flex: 1;
+    overflow-y: auto;
+    height: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #sidebar-unit {
+    flex: 1;
+    overflow-y: auto;
+    height: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+  }
+  #sidebar-unit.hidden { display: none !important; }
+  .units-table-wrap { flex: 1; overflow-y: auto; max-height: none; }
+  .su-panel { overflow-y: auto; padding: 10px; flex: 1; }
+  .su-panel.active { display: flex; flex-direction: column; }
+
+  /* ── Mobile bottom nav ── */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--header-bg);
+    border-top: 1px solid var(--border);
+    z-index: 600;
+    box-shadow: 0 -2px 16px rgba(0,0,0,0.12);
+  }
+  .mbn-btn {
+    flex: 1;
+    border: none; background: transparent;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; cursor: pointer; padding: 6px 4px;
+    color: var(--muted);
+    transition: color var(--t);
+    -webkit-tap-highlight-color: transparent;
+    min-height: 44px;
+  }
+  .mbn-btn.active { color: var(--accent); }
+  .mbn-icon { font-size: 20px; line-height: 1; display: block; }
+  .mbn-label { font-size: 10px; font-weight: 500; line-height: 1; }
+
+  /* ── KPI compact ── */
+  #kpi-box { padding: 10px 12px; }
+  .kpi-card { padding: 9px 5px; }
   .kpi-value { font-size: 18px; }
   .kpi-label { font-size: 9px; }
   .kpi-grid { gap: 5px; }
-  #kpi-box { padding: 10px; }
 
-  /* ── Units table in sidebar ── */
-  .units-table-toolbar { padding: 6px 8px; gap: 5px; }
+  /* ── Units table compact ── */
+  .units-table-toolbar { padding: 7px 10px; gap: 6px; }
   .units-main-table { font-size: 11px; }
-  .units-main-table thead th { padding: 6px 6px; font-size: 10px; }
-  .units-main-table tbody td { padding: 6px 6px; }
+  .units-main-table thead th { padding: 7px 8px; font-size: 10px; }
+  .units-main-table tbody td { padding: 7px 8px; }
 
-  /* ── Sidebar unit panels ── */
+  /* ── Sidebar unit view ── */
   .sidebar-unit-header { padding: 10px 12px; gap: 8px; }
   .su-name { font-size: 13px; }
-  .su-tab { font-size: 11px; padding: 9px 4px; }
-  .su-panel { padding: 10px; overflow-y: visible; }
+  .su-tab { font-size: 12px; padding: 10px 5px; }
 
-  /* ── Check cards ── */
+  /* ── Checks ── */
   .check-card { padding: 10px 12px; }
   .check-date-badge { font-size: 11px; }
   .check-inspector { font-size: 12px; }
 
-  /* ── Curator accordion ── */
+  /* ── Curator ── */
   .curator-accordion { padding: 6px; gap: 5px; }
   .curator-sec-header { padding: 10px 10px; }
   .curator-sec-name { font-size: 11px; }
@@ -1327,31 +1447,24 @@ body.dark .check-card { background: #1e3a6e; }
   .dv-meta-row { gap: 8px; }
   .dv-meta-item { font-size: 10px; }
   .dv-meta-item strong { font-size: 9px; }
-  .dv-close-btn { width: 38px; height: 38px; font-size: 17px; }
+  .dv-close-btn { width: 40px; height: 40px; font-size: 18px; }
   .dv-content { padding: 12px 0; }
-  .dv-content .docx-content { padding: 20px 16px; margin: 0 8px; font-size: 13px; }
+  .dv-content .docx-content { padding: 20px 14px; margin: 0 8px; font-size: 13px; }
 
-  /* ── Modals — slide up from bottom ── */
+  /* ── Modals — full-width slide up from bottom ── */
   .app-modal, .full-modal, .wide-modal {
-    width: 100vw !important;
-    max-width: 100vw !important;
-    max-height: 90dvh;
-    max-height: 90vh;
-    border-radius: 14px 14px 0 0;
-    margin: 0;
-    position: fixed;
-    bottom: 0;
-    top: auto;
-    left: 0;
-    right: 0;
+    width: 100vw !important; max-width: 100vw !important;
+    max-height: 92dvh; max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+    position: fixed; bottom: 0; top: auto; left: 0; right: 0; margin: 0;
   }
   dialog[open] { margin: 0; padding: 0; }
   .modal-header { padding: 12px 14px; }
   .modal-header h3 { font-size: 14px; }
   .modal-body { padding: 12px 14px; }
 
-  /* ── Admin ── */
-  .admin-tabs { flex-wrap: wrap; padding: 0 10px; }
+  /* ── Admin panel ── */
+  .admin-tabs { flex-wrap: wrap; padding: 0 10px; gap: 0; }
   .tab-btn { font-size: 11px; padding: 8px 10px; }
   .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .admin-table { min-width: 480px; }
@@ -1363,11 +1476,11 @@ body.dark .check-card { background: #1e3a6e; }
   .settings-table { min-width: 460px; }
   .settings-toolbar { flex-wrap: wrap; gap: 6px; }
 
-  /* ── Misc ── */
-  .data-controls-inner { flex-direction: column; gap: 8px; }
-  .control-group { flex-wrap: wrap; gap: 6px; }
-  .url-input { width: 100% !important; }
-  .toast-host, #toastHost { bottom: 10px; right: 10px; left: 10px; max-width: none; }
+  /* ── Toast — above bottom nav ── */
+  .toast-host, #toastHost {
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    right: 12px; left: 12px; max-width: none;
+  }
 }
 
 /* ============================================================
@@ -1376,26 +1489,47 @@ body.dark .check-card { background: #1e3a6e; }
 @media (max-width: 420px) {
   .brand-titles { display: none; }
   .app-header { justify-content: space-between; }
-  .header-search { width: 80px; font-size: 12px; }
-  .header-search:focus { width: 110px; }
-  .main-content { grid-template-rows: 46vh 1fr; }
   .kpi-grid { gap: 4px; }
   .kpi-value { font-size: 16px; }
   .kpi-card { padding: 7px 3px; }
-  .filter-bar select { font-size: 10px; padding: 4px 14px 4px 5px; }
   .action-btn { font-size: 10px; padding: 5px 7px; }
   .dv-header { min-height: 50px; padding: 0 10px; }
-  .dv-meta-row { display: none; } /* too cramped at 420px — hide meta row */
-  .check-card { padding: 9px 10px; }
+  .dv-meta-row { display: none; }
 }
 
 /* ============================================================
-   LANDSCAPE PHONE (short viewport)
+   LANDSCAPE PHONE — restore side-by-side layout
    ============================================================ */
 @media (max-height: 500px) and (max-width: 900px) {
-  .main-content { grid-template-rows: 1fr; grid-template-columns: 1fr 1fr; }
-  .map-column { overflow: hidden; }
-  .sidebar { border-left: 1px solid var(--border); border-top: none; overflow-y: auto; }
+  /* Undo bottom sheet, go back to desktop-style grid */
+  .main-content {
+    display: grid !important;
+    grid-template-columns: 1fr 320px !important;
+    grid-template-rows: 1fr !important;
+  }
+  .map-column {
+    position: relative !important;
+    padding-bottom: 0 !important;
+    inset: auto !important;
+  }
+  .filter-bar {
+    position: static !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .sidebar {
+    position: relative !important;
+    bottom: auto !important; left: auto !important; right: auto !important;
+    border-left: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    height: auto !important;
+    overflow-y: auto !important;
+  }
+  .sheet-handle-bar { display: none !important; }
+  .mobile-bottom-nav { display: none !important; }
+  .data-controls { display: block; }
   .app-header { height: 44px; }
   .brand-title-main { font-size: 9px; }
 }
@@ -1404,7 +1538,8 @@ body.dark .check-card { background: #1e3a6e; }
    PRINT
    ============================================================ */
 @media print {
-  .app-header,.filter-bar,.data-controls,.sidebar,dialog,#toastHost,.toast-host { display: none !important; }
+  .app-header,.filter-bar,.data-controls,.sidebar,
+  dialog,#toastHost,.toast-host,.mobile-bottom-nav { display: none !important; }
   .main-content { display: block; }
   .map-container { height: 100vh; }
 }

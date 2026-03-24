@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1e3a8a">
   <title>КОНТРОЛЬ ЗА ДІЯЛЬНІСТЮ ПІДРОЗДІЛІВ</title>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Аналітика МГ">
+  <link rel="apple-touch-icon" href="assets/img/emblem.png">
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" crossorigin="anonymous">
@@ -12,7 +19,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
 
   <!-- App styles -->
-  <link rel="stylesheet" href="assets/css/styles.css?v=122">
+  <link rel="stylesheet" href="assets/css/styles.css?v=123">
 </head>
 <body>
 
@@ -307,6 +314,12 @@
   </div>
 
   <aside class="sidebar" id="sidebar">
+    <!-- Mobile bottom sheet handle (hidden on desktop) -->
+    <div class="sheet-handle-bar" id="sheetHandleBar">
+      <div class="sheet-grab"></div>
+      <span id="sheetTitle">Підрозділи</span>
+    </div>
+
     <!-- Default view: KPI + units table -->
     <div id="sidebar-default">
       <div id="kpi-box"></div>
@@ -356,6 +369,22 @@
     </div>
   </aside>
 </main>
+
+<!-- Mobile bottom navigation (visible only on ≤640px via CSS) -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+  <button class="mbn-btn active" id="mbn-map">
+    <span class="mbn-icon">🗺️</span>
+    <span class="mbn-label">Карта</span>
+  </button>
+  <button class="mbn-btn" id="mbn-units">
+    <span class="mbn-icon">📋</span>
+    <span class="mbn-label">Підрозділи</span>
+  </button>
+  <button class="mbn-btn" id="mbn-filter">
+    <span class="mbn-icon">⚙️</span>
+    <span class="mbn-label">Фільтри</span>
+  </button>
+</nav>
 
 <!-- Data controls (advanced, collapsible) -->
 <details class="data-controls" id="data-controls">
@@ -428,6 +457,7 @@ document.querySelectorAll('input[name="mapmode"]').forEach(function(r) {
 <script src="assets/js/admin.js?v=121"></script>
 <script src="assets/js/files.js?v=121"></script>
 <script src="assets/js/protect.js?v=121"></script>
+<script src="assets/js/mobile.js?v=123"></script>
 
 </body>
 </html>
