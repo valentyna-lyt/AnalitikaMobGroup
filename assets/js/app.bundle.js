@@ -449,9 +449,11 @@ window.openUnitSidebar = function(dataset) {
   }
   // Activate checks tab by default
   window.switchSidebarTab('checks');
+  // Find unit row so CSV last_check/inspectors can be shown in sidebar
+  var unitRow = state.data.find(function(r){ return String(r.id) === String(unitId); });
   // Load inspections immediately
   if (typeof window.loadSidebarChecks === 'function') {
-    window.loadSidebarChecks(unitId, unitName);
+    window.loadSidebarChecks(unitId, unitName, unitRow);
   }
   // Curator tab — loaded on demand
   var _curatorLoaded = false;
@@ -464,7 +466,7 @@ window.openUnitSidebar = function(dataset) {
         if (typeof window.loadAndRenderCuratorTab === 'function') window.loadAndRenderCuratorTab(unitId, unitName);
       }
       if (t === 'checks') {
-        if (typeof window.loadSidebarChecks === 'function') window.loadSidebarChecks(unitId, unitName);
+        if (typeof window.loadSidebarChecks === 'function') window.loadSidebarChecks(unitId, unitName, unitRow);
       }
     };
   });

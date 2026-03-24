@@ -21,7 +21,7 @@ async function loadInspectionsForUnit(unitId) {
 // ПЕРЕВІРКИ TAB
 // ============================================================
 
-window.loadSidebarChecks = async function(unitId, unitName) {
+window.loadSidebarChecks = async function(unitId, unitName, unitRow) {
   var panel = document.getElementById('sidebar-checks-panel');
   if (!panel) return;
   panel.innerHTML = '<div class="loading" style="padding:24px;text-align:center">Завантаження...</div>';
@@ -29,13 +29,10 @@ window.loadSidebarChecks = async function(unitId, unitName) {
   try {
     var items = await loadInspectionsForUnit(unitId);
 
-    // Inject CSV-derived baseline record (last_check / inspectors from state)
-    var unitRow = (window.state && window.state.data || []).find(function(d) {
-      return String(d.id) === String(unitId);
-    });
+    // Inject CSV-derived baseline record (last_check / inspectors from unit data)
     if (unitRow && unitRow.last_check) {
       var alreadyInDB = items.some(function(c) {
-        return c.case_date && c.case_date.slice(0, 10) === unitRow.last_check.slice(0, 10) && !c._fromCSV;
+        return c.case_date && c.case_date.slice(0, 10) === String(unitRow.last_check).slice(0, 10) && !c._fromCSV;
       });
       if (!alreadyInDB) {
         items = [{
