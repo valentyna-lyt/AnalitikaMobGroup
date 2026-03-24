@@ -244,15 +244,15 @@ async function refreshAdminUsers() {
     }
 
     tbody.innerHTML = users.map(function(u) {
+      var canDel = u.role !== 'admin' || users.filter(function(x){ return x.role==='admin'; }).length > 1;
       return '<tr>' +
         '<td>' + escHTML(u.email) + '</td>' +
         '<td>' + escHTML(u.full_name || '—') + '</td>' +
         '<td><span class="badge badge-' + (u.role === 'admin' ? 'bad' : 'info') + '">' + escHTML(u.role) + '</span></td>' +
         '<td>' + new Date(u.created_at).toLocaleDateString('uk-UA') + '</td>' +
-        '<td>' +
-          (u.role !== 'admin' || users.filter(function(x){ return x.role==='admin'; }).length > 1
-            ? '<button class="btn-sm btn-danger admin-del-user" data-id="' + escHTML(u.id) + '">🗑️</button>'
-            : '') +
+        '<td style="white-space:nowrap">' +
+          '<button class="btn-sm admin-pwd-user" data-id="' + escHTML(u.id) + '" data-email="' + escHTML(u.email) + '" title="Змінити пароль">🔑</button>' +
+          (canDel ? ' <button class="btn-sm btn-danger admin-del-user" data-id="' + escHTML(u.id) + '">🗑️</button>' : '') +
         '</td>' +
         '</tr>';
     }).join('');
@@ -264,6 +264,20 @@ async function refreshAdminUsers() {
           await window.localAPI.fetch('/users/' + btn.dataset.id, { method: 'DELETE' });
           await refreshAdminUsers();
         } catch(e) { alert(e.message); }
+      });
+    });
+
+    tbody.querySelectorAll('.admin-pwd-user').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var newPwd = prompt('Новий пароль для ' + btn.dataset.email + ' (мін. 6 символів):');
+        if (!newPwd) return;
+        if (newPwd.length < 6) { alert('Пароль мінімум 6 символів'); return; }
+        window.localAPI.fetch('/users/' + btn.dataset.id, {
+          method: 'PATCH',
+          body: JSON.stringify({ password: newPwd })
+        }).then(function() {
+          alert('Пароль змінено успішно');
+        }).catch(function(e) { alert('Помилка: ' + e.message); });
       });
     });
   } catch(e) {
@@ -298,6 +312,36 @@ function bindAdminUI() {
   document.getElementById('admin-add-user-btn')?.addEventListener('click', function() {
     var form = document.getElementById('admin-add-user-form');
     if (form) form.classList.toggle('hidden');
+  });
+
+  // Change my password
+  document.getElementById('admin-change-my-pwd-btn')?.addEventListener('click', function() {
+    var form = document.getElementById('admin-change-pwd-form');
+    if (form) form.classList.toggle('hidden');
+  });
+  document.getElementById('cancel-my-pwd-btn')?.addEventListener('click', function() {
+    var form = document.getElementById('admin-change-pwd-form');
+    if (form) form.classList.add('hidden');
+  });
+  document.getElementById('save-my-pwd-btn')?.addEventListener('click', async function() {
+    var newPwd = document.getElementById('my-new-password')?.value;
+    var confirmPwd = document.getElementById('my-confirm-password')?.value;
+    var errEl = document.getElementById('change-pwd-error');
+    if (errEl) errEl.textContent = '';
+    if (!newPwd || newPwd.length < 6) { if (errEl) errEl.textContent = 'Пароль мінімум 6 символів'; return; }
+    if (newPwd !== confirmPwd) { if (errEl) errEl.textContent = 'Паролі не збігаються'; return; }
+    var me = window.currentUser;
+    if (!me || !me.id) { if (errEl) errEl.textContent = 'Не вдалося визначити поточного користувача'; return; }
+    try {
+      await window.localAPI.fetch('/users/' + me.id, {
+        method: 'PATCH',
+        body: JSON.stringify({ password: newPwd })
+      });
+      document.getElementById('my-new-password').value = '';
+      document.getElementById('my-confirm-password').value = '';
+      document.getElementById('admin-change-pwd-form').classList.add('hidden');
+      alert('Пароль успішно змінено');
+    } catch(e) { if (errEl) errEl.textContent = e.message; }
   });
   document.getElementById('cancel-user-btn')?.addEventListener('click', function() {
     var form = document.getElementById('admin-add-user-form');

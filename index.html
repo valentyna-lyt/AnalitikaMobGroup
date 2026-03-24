@@ -103,7 +103,10 @@
   <div id="admin-users-panel" class="modal-body" style="display:none">
     <div class="admin-toolbar" style="display:flex;justify-content:space-between;align-items:center">
       <span id="admin-users-count"></span>
-      <button class="btn-action" id="admin-add-user-btn">+ Додати користувача</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary-sm" id="admin-change-my-pwd-btn">🔑 Мій пароль</button>
+        <button class="btn-action" id="admin-add-user-btn">+ Додати користувача</button>
+      </div>
     </div>
     <div id="admin-add-user-form" class="add-user-form hidden">
       <div class="form-row">
@@ -133,10 +136,28 @@
         <button class="btn-secondary-sm" id="cancel-user-btn">Скасувати</button>
       </div>
     </div>
+    <div id="admin-change-pwd-form" class="add-user-form hidden" style="margin-top:10px">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">🔑 Змінити мій пароль</div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr">
+        <div class="form-group">
+          <label>Новий пароль *</label>
+          <input type="password" id="my-new-password" placeholder="Мінімум 6 символів">
+        </div>
+        <div class="form-group">
+          <label>Підтвердити *</label>
+          <input type="password" id="my-confirm-password" placeholder="Повторіть пароль">
+        </div>
+      </div>
+      <div id="change-pwd-error" class="error-msg"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn-action" id="save-my-pwd-btn">Зберегти пароль</button>
+        <button class="btn-secondary-sm" id="cancel-my-pwd-btn">Скасувати</button>
+      </div>
+    </div>
     <div class="table-wrap">
       <table class="admin-table">
         <thead>
-          <tr><th>Email</th><th>Ім'я</th><th>Роль</th><th>Додано</th><th></th></tr>
+          <tr><th>Email</th><th>Ім'я</th><th>Роль</th><th>Додано</th><th style="width:80px"></th></tr>
         </thead>
         <tbody id="admin-users-tbody"></tbody>
       </table>
