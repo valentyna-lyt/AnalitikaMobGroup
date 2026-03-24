@@ -231,33 +231,41 @@ function renderFolderGrid(container, sectionNames, bySection, unitId, unitName) 
 // FILE CARD
 // ============================================================
 
+function fmtFileDate(raw) {
+  if (!raw) return '';
+  var d = new Date(raw);
+  if (isNaN(d)) return raw;
+  return d.toLocaleDateString('uk-UA');
+}
+
 function renderFileCard(f) {
   var safe = escHTML(f.filename);
   var sp   = escHTML(f.storage_path);
+  var dateAttr = f.created_at ? ' data-date="' + escHTML(fmtFileDate(f.created_at)) + '"' : '';
   var del  = isAdmin()
     ? '<button class="file-del" data-id="' + escHTML(f.id) + '" title="Видалити">🗑️</button>'
     : '';
 
   if (isImage(f.filename)) {
     return '<div class="file-card">' +
-      '<div class="file-thumb-wrap"><img data-sp="' + sp + '" alt="' + safe + '" class="file-thumb">' +
+      '<div class="file-thumb-wrap"><img data-sp="' + sp + '"' + dateAttr + ' alt="' + safe + '" class="file-thumb">' +
       '<div class="file-overlay">🔍</div></div>' +
       '<div class="file-card-name">' + safe + '</div>' + del + '</div>';
   }
   if (isPDF(f.filename)) {
     return '<div class="file-card">' +
-      '<a class="file-icon-link" data-sp="' + sp + '" data-pdf="1" data-name="' + safe + '" href="#">' +
+      '<a class="file-icon-link" data-sp="' + sp + '"' + dateAttr + ' data-pdf="1" data-name="' + safe + '" href="#">' +
       '<span class="file-big-icon">📄</span></a>' +
       '<div class="file-card-name">' + safe + '</div>' + del + '</div>';
   }
   if (isOffice(f.filename)) {
     return '<div class="file-card">' +
-      '<a class="file-icon-link" data-sp="' + sp + '" data-office="1" data-name="' + safe + '" href="#">' +
+      '<a class="file-icon-link" data-sp="' + sp + '"' + dateAttr + ' data-office="1" data-name="' + safe + '" href="#">' +
       '<span class="file-big-icon">' + fileIcon(f.filename) + '</span></a>' +
       '<div class="file-card-name">' + safe + '</div>' + del + '</div>';
   }
   return '<div class="file-card">' +
-    '<a class="file-icon-link" data-sp="' + sp + '" href="#" data-download="' + safe + '">' +
+    '<a class="file-icon-link" data-sp="' + sp + '"' + dateAttr + ' href="#" data-download="' + safe + '">' +
     '<span class="file-big-icon">' + fileIcon(f.filename) + '</span></a>' +
     '<div class="file-card-name">' + safe + '</div>' + del + '</div>';
 }
@@ -268,18 +276,30 @@ function bindFileCards(grid, unitId, unitName, container, bySection) {
     var url = await getBlobUrl(sp);
     if (!url) return;
 
+    // Build metadata from element context (works for both folder-view and curator accordion)
+    var secPanel = el.closest('.sec-files-panel');
+    var curatorSection = el.closest('.curator-sec-body') && el.closest('.curator-section');
+    var sectionName = secPanel
+      ? (secPanel.dataset.sec || '')
+      : (curatorSection ? (curatorSection.querySelector('.curator-sec-name')?.textContent || '') : '');
+    var meta = {
+      unit: unitName || '',
+      section: sectionName,
+      date: el.dataset.date || ''
+    };
+
     if (el.tagName === 'IMG') {
       el.src = url;
       el.style.cursor = 'zoom-in';
-      el.addEventListener('click', function() { openImgViewer(url, el.alt); });
+      el.addEventListener('click', function() { openImgViewer(url, el.alt, meta); });
       var ov = el.closest('.file-thumb-wrap')?.querySelector('.file-overlay');
-      if (ov) ov.addEventListener('click', function() { openImgViewer(url, el.alt); });
+      if (ov) ov.addEventListener('click', function() { openImgViewer(url, el.alt, meta); });
     } else if (el.dataset.pdf) {
       el.href = '#';
-      el.addEventListener('click', function(e) { e.preventDefault(); openDocViewer(url, el.dataset.name, sp); });
+      el.addEventListener('click', function(e) { e.preventDefault(); openDocViewer(url, el.dataset.name, sp, meta); });
     } else if (el.dataset.office) {
       el.href = '#';
-      el.addEventListener('click', function(e) { e.preventDefault(); openDocViewer(url, el.dataset.name, sp); });
+      el.addEventListener('click', function(e) { e.preventDefault(); openDocViewer(url, el.dataset.name, sp, meta); });
     } else if (el.dataset.download) {
       // Download link - fetch blob and trigger download
       el.addEventListener('click', async function(e) {
@@ -307,12 +327,29 @@ function bindFileCards(grid, unitId, unitName, container, bySection) {
 // IMAGE VIEWER
 // ============================================================
 
-function openImgViewer(url, title) {
+function setDvMeta(filename, meta) {
+  var ext = (filename || '').split('.').pop().toLowerCase();
+  var icons = { pdf:'📕', docx:'📘', doc:'📘', xlsx:'📗', xls:'📗', png:'🖼', jpg:'🖼', jpeg:'🖼', gif:'🖼' };
+  var iconEl = document.getElementById('dv-icon');
+  if (iconEl) iconEl.textContent = icons[ext] || '📄';
+
+  var metaEl = document.getElementById('dv-meta');
+  if (!metaEl || !meta) return;
+  var items = [];
+  if (meta.unit)    items.push('<div class="dv-meta-item"><strong>Підрозділ:</strong><span>' + escHTML(meta.unit) + '</span></div>');
+  if (meta.section) items.push('<div class="dv-meta-item"><strong>Розділ:</strong><span>' + escHTML(meta.section) + '</span></div>');
+  if (meta.date)    items.push('<div class="dv-meta-item"><strong>Дата:</strong><span>' + escHTML(meta.date) + '</span></div>');
+  if (meta.user)    items.push('<div class="dv-meta-item"><strong>Переглядає:</strong><span>' + escHTML(meta.user) + '</span></div>');
+  metaEl.innerHTML = items.join('');
+}
+
+function openImgViewer(url, title, meta) {
   var overlay = document.getElementById('doc-viewer-overlay');
   var titleEl = document.getElementById('dv-title');
   var content = document.getElementById('dv-content');
   if (!overlay || !content) return;
   if (titleEl) titleEl.textContent = title || '';
+  setDvMeta(title, meta);
   content.innerHTML = '<img src="' + url + '" alt="' + escHTML(title||'') + '" class="dv-img">';
   overlay.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
@@ -330,13 +367,18 @@ function closeDocViewer() {
   if (content) content.innerHTML = '';
 }
 
-async function openDocViewer(blobUrl, filename, storagePath) {
+async function openDocViewer(blobUrl, filename, storagePath, meta) {
   var overlay = document.getElementById('doc-viewer-overlay');
   var titleEl = document.getElementById('dv-title');
   var content = document.getElementById('dv-content');
   if (!overlay || !content) return;
   if (titleEl) titleEl.textContent = filename || 'Документ';
-  content.innerHTML = '<div class="loading" style="padding:40px;text-align:center">⏳ Завантаження...</div>';
+  // Build meta with current user added
+  var fullMeta = Object.assign({}, meta || {}, {
+    user: (window.currentUser && (window.currentUser.full_name || window.currentUser.email)) || ''
+  });
+  setDvMeta(filename, fullMeta);
+  content.innerHTML = '<div class="loading" style="padding:40px;text-align:center;color:rgba(255,255,255,0.5)">⏳ Завантаження...</div>';
   overlay.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 

@@ -226,7 +226,13 @@
 <!-- Fullscreen document/image viewer overlay -->
 <div id="doc-viewer-overlay" class="dv-overlay hidden">
   <div class="dv-header">
-    <span id="dv-title" class="dv-title-text"></span>
+    <div class="dv-header-left">
+      <div class="dv-doc-icon" id="dv-icon">📄</div>
+      <div class="dv-header-info">
+        <div id="dv-title" class="dv-title-text"></div>
+        <div class="dv-meta-row" id="dv-meta"></div>
+      </div>
+    </div>
     <button id="dv-close" class="dv-close-btn">✕</button>
   </div>
   <div id="dv-content" class="dv-content"></div>
