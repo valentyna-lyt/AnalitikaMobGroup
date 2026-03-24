@@ -18,24 +18,54 @@
 
 <!-- ===== AUTH OVERLAY ===== -->
 <div id="auth-overlay" style="display:none">
-  <div id="auth-login" class="auth-box">
-    <div class="auth-logo">
-      <img src="assets/img/emblem.png" alt="Емблема" style="width:72px;height:auto;">
+  <div class="auth-screen">
+    <div class="auth-card">
+      <!-- Branding -->
+      <div class="auth-brand">
+        <img src="assets/img/emblem.png" alt="Емблема ГУНП" class="auth-emblem">
+        <div class="auth-brand-text">
+          <div class="auth-org">УПРАВЛІННЯ ГОЛОВНОЇ ІНСПЕКЦІЇ</div>
+          <div class="auth-org-sub">ГУНП В ХАРКІВСЬКІЙ ОБЛАСТІ</div>
+          <div class="auth-project">Контроль за діяльністю підрозділів</div>
+        </div>
+      </div>
+
+      <div class="auth-divider"></div>
+
+      <!-- Login form -->
+      <div id="auth-login">
+        <p class="auth-form-title">Вхід до системи</p>
+        <form id="auth-login-form">
+          <div class="auth-field">
+            <label class="auth-label">Email</label>
+            <input type="email" id="login-email" required placeholder="your@email.com" autocomplete="email" class="auth-input">
+          </div>
+          <div class="auth-field">
+            <label class="auth-label">Пароль</label>
+            <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password" class="auth-input">
+          </div>
+          <div id="login-error" class="auth-error"></div>
+          <button type="submit" class="auth-submit-btn">Увійти</button>
+        </form>
+      </div>
+
+      <!-- Change password form (hidden by default) -->
+      <div id="auth-change-password" style="display:none">
+        <p class="auth-form-title">Зміна пароля</p>
+        <form id="auth-change-password-form">
+          <div class="auth-field">
+            <label class="auth-label">Новий пароль</label>
+            <input type="password" id="new-password" required placeholder="Мінімум 6 символів" class="auth-input">
+          </div>
+          <div class="auth-field">
+            <label class="auth-label">Підтвердити пароль</label>
+            <input type="password" id="confirm-password" required placeholder="Повторіть пароль" class="auth-input">
+          </div>
+          <div id="reset-error" class="auth-error"></div>
+          <button type="submit" class="auth-submit-btn">Зберегти пароль</button>
+        </form>
+      </div>
     </div>
-    <h2>АНАЛІТИКА МГ</h2>
-    <p class="auth-subtitle">Система аналітики роботи мобільних груп</p>
-    <form id="auth-login-form">
-      <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="login-email" required placeholder="your@email.com" autocomplete="email">
-      </div>
-      <div class="form-group">
-        <label>Пароль</label>
-        <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password">
-      </div>
-      <div id="login-error" class="error-msg"></div>
-      <button type="submit" class="btn-primary">Увійти</button>
-    </form>
   </div>
 </div>
 
