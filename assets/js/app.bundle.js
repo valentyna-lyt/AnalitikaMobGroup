@@ -449,24 +449,22 @@ window.openUnitSidebar = function(dataset) {
   }
   // Activate checks tab by default
   window.switchSidebarTab('checks');
-  // Load inspections
+  // Load inspections immediately
   if (typeof window.loadSidebarChecks === 'function') {
     window.loadSidebarChecks(unitId, unitName);
   }
-  // Load files (deferred — loaded when tab is clicked)
-  var _filesLoaded = false;
-  var _casesLoaded = false;
+  // Curator tab — loaded on demand
+  var _curatorLoaded = false;
   document.querySelectorAll('.su-tab').forEach(function(btn) {
     btn.onclick = function() {
       var t = btn.dataset.tab;
       window.switchSidebarTab(t);
-      if (t === 'files' && !_filesLoaded) {
-        _filesLoaded = true;
-        if (typeof window.loadAndRenderFilesTab === 'function') window.loadAndRenderFilesTab(unitId, unitName);
+      if (t === 'curator' && !_curatorLoaded) {
+        _curatorLoaded = true;
+        if (typeof window.loadAndRenderCuratorTab === 'function') window.loadAndRenderCuratorTab(unitId, unitName);
       }
-      if (t === 'cases' && !_casesLoaded) {
-        _casesLoaded = true;
-        if (typeof window.loadSidebarCases === 'function') window.loadSidebarCases(unitId, unitName);
+      if (t === 'checks') {
+        if (typeof window.loadSidebarChecks === 'function') window.loadSidebarChecks(unitId, unitName);
       }
     };
   });
@@ -478,7 +476,7 @@ window.switchSidebarTab = function(tab) {
   document.querySelectorAll('.su-tab').forEach(function(btn) {
     btn.classList.toggle('active', btn.dataset.tab === tab);
   });
-  ['checks', 'files', 'cases'].forEach(function(t) {
+  ['checks', 'curator'].forEach(function(t) {
     var el = document.getElementById('sidebar-' + t + '-panel');
     if (!el) return;
     el.classList.toggle('hidden', t !== tab);

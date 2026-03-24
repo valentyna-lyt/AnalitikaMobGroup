@@ -3,11 +3,14 @@
 // Uses local API (/api/files, /api/view)
 
 window.DEFAULT_SECTIONS = [
-  'Загальна інформація про підрозділ',
+  'Загальна характеристика підрозділу',
   'Інформація щодо особового складу',
-  'Інформація щодо діяльності підрозділу',
-  'Характеристика району обслуговування',
-  'Робота під час блекауту'
+  'Інформація щодо району обслуговування',
+  'Робота підрозділу під час блекауту',
+  'ПОГ та їх діяльність',
+  'Інформація щодо блокпостів на території обслуговування',
+  'Відряджені працівники, в тому числі переведені до зведених загонів',
+  '«Чорний список» поліцейських підрозділу'
 ];
 
 // ---- File type helpers ----
@@ -260,7 +263,7 @@ function renderFileCard(f) {
 }
 
 function bindFileCards(grid, unitId, unitName, container, bySection) {
-  grid.querySelectorAll('[data-sp]').forEach(async function(el) {
+  grid.querySelectorAll('[data-sp], .curator-file-link[data-name]').forEach(async function(el) {
     var sp = el.dataset.sp;
     var url = await getBlobUrl(sp);
     if (!url) return;
@@ -543,3 +546,136 @@ window.openDocViewer             = openDocViewer;
 window.openImgViewer             = openImgViewer;
 window.renderUnitFiles           = renderUnitFiles;
 window.adminUploadFilesToSection = adminUploadFilesToSection;
+
+// ============================================================
+// КУРАТОРСЬКА СПРАВА TAB — 8 accordion sections
+// ============================================================
+
+window.loadAndRenderCuratorTab = async function(unitId, unitName) {
+  var container = document.getElementById('sidebar-curator-panel');
+  if (!container) return;
+  container.innerHTML = '<div class="loading" style="padding:24px;text-align:center">Завантаження...</div>';
+
+  try {
+    var files = await loadUnitFiles(unitId);
+    renderCuratorAccordion(container, files, unitId, unitName);
+  } catch(e) {
+    container.innerHTML = '<div class="error-msg" style="padding:16px">⚠️ ' + escHTML(e.message) + '</div>';
+  }
+};
+
+function renderCuratorAccordion(container, files, unitId, unitName) {
+  // Group files by section
+  var bySection = {};
+  DEFAULT_SECTIONS.forEach(function(s) { bySection[s] = []; });
+  files.forEach(function(f) {
+    var key = f.section_name || DEFAULT_SECTIONS[0];
+    if (!bySection[key]) bySection[key] = [];
+    bySection[key].push(f);
+  });
+
+  var html = '<div class="curator-accordion">';
+  DEFAULT_SECTIONS.forEach(function(secName, idx) {
+    var secFiles = bySection[secName] || [];
+    var count = secFiles.length;
+    var sId = 'csec-' + idx;
+
+    html += '<div class="curator-section" id="' + sId + '">' +
+      '<div class="curator-sec-header" data-sec-id="' + sId + '">' +
+        '<div class="curator-sec-left">' +
+          '<span class="curator-sec-num">' + (idx+1) + '</span>' +
+          '<span class="curator-sec-name">' + escHTML(secName) + '</span>' +
+        '</div>' +
+        '<div class="curator-sec-right">' +
+          '<span class="curator-file-badge' + (count ? ' has-files' : '') + '">' +
+            (count ? count + ' ' + fileCountLabel(count).replace(/\d+ ?/,'') : 'Порожньо') +
+          '</span>' +
+          (isAdmin() ? '<button class="curator-upload-btn" data-sec="' + escHTML(secName) + '" data-unit="' + escHTML(unitId) + '" data-uname="' + escHTML(unitName) + '">⬆</button>' : '') +
+          '<span class="curator-chevron">›</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="curator-sec-body hidden" id="' + sId + '-body">' +
+        renderCuratorSectionBody(secFiles, secName, unitId) +
+      '</div>' +
+    '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+
+  // Toggle accordion
+  container.querySelectorAll('.curator-sec-header').forEach(function(header) {
+    header.addEventListener('click', function(e) {
+      if (e.target.classList.contains('curator-upload-btn')) return;
+      var sId = header.dataset.secId;
+      var body = document.getElementById(sId + '-body');
+      var chevron = header.querySelector('.curator-chevron');
+      var isOpen = !body.classList.contains('hidden');
+      // Close all
+      container.querySelectorAll('.curator-sec-body').forEach(function(b){ b.classList.add('hidden'); });
+      container.querySelectorAll('.curator-chevron').forEach(function(c){ c.classList.remove('open'); });
+      container.querySelectorAll('.curator-section').forEach(function(s){ s.classList.remove('open'); });
+      if (!isOpen) {
+        body.classList.remove('hidden');
+        if (chevron) chevron.classList.add('open');
+        header.closest('.curator-section').classList.add('open');
+        // Load blobs for images
+        bindFileCards(body, unitId, unitName, container, bySection);
+      }
+    });
+  });
+
+  // Admin: upload buttons
+  if (isAdmin()) {
+    container.querySelectorAll('.curator-upload-btn').forEach(function(btn) {
+      btn.addEventListener('click', async function(e) {
+        e.stopPropagation();
+        var sec = btn.dataset.sec;
+        var inp = document.createElement('input');
+        inp.type = 'file'; inp.multiple = true; inp.style.display = 'none';
+        document.body.appendChild(inp);
+        inp.addEventListener('change', async function() {
+          if (!inp.files?.length) { document.body.removeChild(inp); return; }
+          btn.textContent = '⏳';
+          btn.disabled = true;
+          var errors = await adminUploadFilesToSection(inp.files, unitId, unitName, sec, null);
+          document.body.removeChild(inp);
+          _blobCache = {};
+          await window.loadAndRenderCuratorTab(unitId, unitName);
+          if (errors.length) alert('Помилки:\n' + errors.slice(0,3).join('\n'));
+        });
+        inp.click();
+      });
+    });
+  }
+}
+
+function renderCuratorSectionBody(secFiles, secName, unitId) {
+  if (!secFiles.length) {
+    return '<div class="curator-empty">' +
+      (isAdmin()
+        ? '<span>Файлів немає. Натисніть ⬆ щоб завантажити.</span>'
+        : '<span class="curator-empty-official">Документи відсутні</span>') +
+    '</div>';
+  }
+
+  var html = '<div class="curator-files-list">';
+  secFiles.forEach(function(f) {
+    var icon = fileIcon(f.filename);
+    var safe = escHTML(f.filename);
+    var sp = escHTML(f.storage_path);
+    var shortName = f.filename.length > 36 ? f.filename.slice(0,33)+'…' : f.filename;
+
+    html += '<div class="curator-file-row">' +
+      '<span class="curator-file-icon">' + icon + '</span>' +
+      '<a class="curator-file-link" href="#" data-sp="' + sp + '"' +
+        (isPDF(f.filename) ? ' data-pdf="1"' : '') +
+        (isOffice(f.filename) ? ' data-office="1"' : '') +
+        ' data-name="' + safe + '">' +
+        escHTML(shortName) +
+      '</a>' +
+      (isAdmin() ? '<button class="curator-del-btn" data-id="' + escHTML(f.id) + '" title="Видалити">🗑</button>' : '') +
+    '</div>';
+  });
+  html += '</div>';
+  return html;
+}

@@ -5,197 +5,187 @@ function escHTML(s) {
 }
 function formatDate(d) {
   if (!d) return '—';
-  try { return new Date(d).toLocaleDateString('uk-UA'); } catch(e) { return d; }
+  try { return new Date(d).toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+  catch(e) { return d; }
 }
 
-async function loadCasesForUnit(unitId) {
+// ============================================================
+// API
+// ============================================================
+
+async function loadInspectionsForUnit(unitId) {
   return window.localAPI.fetch('/cases/' + encodeURIComponent(unitId));
 }
 
-function getCasesPanel() {
-  return document.getElementById('sidebar-cases-panel');
-}
-
-function renderCasesList(cases, unitId, unitName) {
-  var panel = getCasesPanel();
-  if (!panel) return;
-
-  var addBtn = isAdmin()
-    ? '<button class="btn btn-primary btn-sm" id="cases-add-btn" style="margin-bottom:12px">+ Додати справу</button>'
-    : '';
-
-  if (!cases.length) {
-    panel.innerHTML = addBtn + '<div class="no-data">Кураторські справи відсутні</div>';
-  } else {
-    panel.innerHTML = addBtn + cases.map(function(c) {
-      return '<div class="case-item">' +
-        '<div class="case-header">' +
-        '<span class="case-title">' + escHTML(c.title) + '</span>' +
-        '<span class="case-date">' + (c.case_date ? formatDate(c.case_date) : '—') + '</span>' +
-        '</div>' +
-        (c.description ? '<div class="case-desc">' + escHTML(c.description) + '</div>' : '') +
-        (isAdmin() ? '<div class="case-actions">' +
-          '<button class="btn-sm btn-edit-case" data-id="' + escHTML(c.id) + '">✏️</button>' +
-          '<button class="btn-sm btn-danger btn-delete-case" data-id="' + escHTML(c.id) + '">🗑️</button>' +
-          '</div>' : '') +
-        '</div>';
-    }).join('');
-  }
-
-  panel.querySelector('#cases-add-btn')?.addEventListener('click', function() {
-    showCaseEditForm(null, unitId, unitName);
-  });
-
-  if (isAdmin()) {
-    panel.querySelectorAll('.btn-edit-case').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var c = cases.find(function(x) { return String(x.id) === String(btn.dataset.id); });
-        if (c) showCaseEditForm(c, unitId, unitName);
-      });
-    });
-    panel.querySelectorAll('.btn-delete-case').forEach(function(btn) {
-      btn.addEventListener('click', async function() {
-        if (!confirm('Видалити справу?')) return;
-        try {
-          await window.localAPI.fetch('/cases/' + btn.dataset.id, { method: 'DELETE' });
-          var updated = await loadCasesForUnit(unitId);
-          renderCasesList(updated, unitId, unitName);
-        } catch(e) { alert('Помилка: ' + e.message); }
-      });
-    });
-  }
-}
-
-function showCaseEditForm(existing, unitId, unitName) {
-  var panel = getCasesPanel();
-  if (!panel) return;
-
-  panel.innerHTML =
-    '<div class="case-edit-form">' +
-    '<h4 style="margin:0 0 12px;font-size:13px;color:var(--accent)">' + (existing ? 'Редагувати справу' : 'Нова справа') + '</h4>' +
-    '<div class="form-group"><label>Назва *</label>' +
-    '<input type="text" id="ce-title" class="form-control" value="' + escHTML(existing?.title||'') + '" placeholder="Назва справи..."></div>' +
-    '<div class="form-group"><label>Дата</label>' +
-    '<input type="date" id="ce-date" class="form-control" value="' + escHTML(existing?.case_date ? existing.case_date.slice(0,10) : '') + '"></div>' +
-    '<div class="form-group"><label>Опис</label>' +
-    '<textarea id="ce-desc" class="form-control" rows="3" placeholder="Деталі...">' + escHTML(existing?.description||'') + '</textarea></div>' +
-    '<div id="ce-error" class="error-msg" style="margin-bottom:8px"></div>' +
-    '<div style="display:flex;gap:8px">' +
-    '<button id="ce-save" class="btn btn-primary btn-sm">Зберегти</button>' +
-    '<button id="ce-cancel" class="btn btn-outline btn-sm">Скасувати</button>' +
-    '</div></div>';
-
-  panel.querySelector('#ce-cancel').addEventListener('click', async function() {
-    var cases = await loadCasesForUnit(unitId);
-    renderCasesList(cases, unitId, unitName);
-  });
-
-  panel.querySelector('#ce-save').addEventListener('click', async function() {
-    var title = panel.querySelector('#ce-title').value.trim();
-    var errEl = panel.querySelector('#ce-error');
-    if (!title) { errEl.textContent = "Назва є обов'язковою"; return; }
-    errEl.textContent = '';
-    var saveBtn = panel.querySelector('#ce-save');
-    saveBtn.disabled = true;
-
-    var payload = {
-      unit_id: unitId, unit_name: unitName,
-      title: title,
-      description: panel.querySelector('#ce-desc').value.trim() || null,
-      case_date: panel.querySelector('#ce-date').value || null
-    };
-
-    try {
-      if (existing?.id) {
-        await window.localAPI.fetch('/cases/' + existing.id, { method: 'PUT', body: JSON.stringify(payload) });
-      } else {
-        await window.localAPI.fetch('/cases', { method: 'POST', body: JSON.stringify(payload) });
-      }
-      var cases = await loadCasesForUnit(unitId);
-      renderCasesList(cases, unitId, unitName);
-    } catch(err) {
-      errEl.textContent = err.message;
-      saveBtn.disabled = false;
-    }
-  });
-}
-
-window.loadSidebarCases = async function(unitId, unitName) {
-  var panel = getCasesPanel();
-  if (!panel) return;
-  panel.innerHTML = '<div class="loading">Завантаження...</div>';
-  try {
-    var cases = await loadCasesForUnit(unitId);
-    renderCasesList(cases, unitId, unitName);
-  } catch(e) {
-    panel.innerHTML = '<div class="error-msg">' + escHTML(e.message) + '</div>';
-  }
-};
-
 // ============================================================
-// INSPECTIONS TAB — sorted by date, read-only
+// ПЕРЕВІРКИ TAB
 // ============================================================
 
 window.loadSidebarChecks = async function(unitId, unitName) {
   var panel = document.getElementById('sidebar-checks-panel');
   if (!panel) return;
-  panel.innerHTML = '<div class="loading" style="padding:20px;text-align:center">Завантаження...</div>';
+  panel.innerHTML = '<div class="loading" style="padding:24px;text-align:center">Завантаження...</div>';
+
   try {
-    var cases = await loadCasesForUnit(unitId);
-    if (!cases.length) {
-      panel.innerHTML = '<div class="checks-empty">Перевірок не зафіксовано</div>';
-      return;
-    }
-    // Sort by date descending
-    cases.sort(function(a, b) {
-      return new Date(b.case_date || 0) - new Date(a.case_date || 0);
-    });
-    // Count ytd
-    var now = new Date();
-    var ytdCount = cases.filter(function(c) {
-      if (!c.case_date) return false;
-      return new Date(c.case_date).getFullYear() === now.getFullYear();
-    }).length;
-
-    var html = '<div class="checks-summary">Всього за рік: <strong>' + ytdCount + '</strong> перевірок</div>';
-    html += '<div class="checks-list">';
-    cases.forEach(function(c) {
-      var dateStr = c.case_date ? new Date(c.case_date).toLocaleDateString('uk-UA') : '—';
-      html += '<div class="check-card">' +
-        '<div class="check-date">' + dateStr + '</div>' +
-        '<div class="check-inspectors">' + escHTML(c.title || '') + '</div>' +
-        (c.description ? '<div class="check-desc">' + escHTML(c.description) + '</div>' : '') +
-        '</div>';
-    });
-    html += '</div>';
-
-    if (isAdmin()) {
-      html += '<button class="btn btn-primary btn-sm checks-add-btn" style="margin:12px 0 0">+ Додати перевірку</button>';
-    }
-    panel.innerHTML = html;
-
-    panel.querySelector('.checks-add-btn')?.addEventListener('click', function() {
-      window.switchSidebarTab('cases');
-      var _casesLoaded = true;
-      if (typeof window.loadSidebarCases === 'function') window.loadSidebarCases(unitId, unitName);
-      // Trigger add form
-      setTimeout(function() {
-        document.getElementById('cases-add-btn')?.click();
-      }, 300);
-    });
+    var items = await loadInspectionsForUnit(unitId);
+    renderChecksList(panel, items, unitId, unitName);
   } catch(e) {
-    panel.innerHTML = '<div class="error-msg" style="padding:16px">' + escHTML(e.message) + '</div>';
+    panel.innerHTML = '<div class="error-msg" style="padding:16px">⚠️ ' + escHTML(e.message) + '</div>';
   }
 };
 
-// Backward compat — now opens sidebar instead of modal
+function renderChecksList(panel, items, unitId, unitName) {
+  // Sort by date desc
+  var sorted = items.slice().sort(function(a,b){
+    return new Date(b.case_date||0) - new Date(a.case_date||0);
+  });
+
+  var now = new Date();
+  var ytd = sorted.filter(function(c){
+    return c.case_date && new Date(c.case_date).getFullYear() === now.getFullYear();
+  }).length;
+
+  var html = '';
+
+  // Admin: add form
+  if (isAdmin()) {
+    html += '<div class="insp-add-wrap">' +
+      '<button class="btn-add-insp" id="insp-add-toggle">＋ Додати перевірку</button>' +
+      '<div class="insp-add-form hidden" id="insp-add-form">' +
+        '<div class="form-group">' +
+          '<label class="form-label">📅 Дата перевірки *</label>' +
+          '<input type="date" id="insp-date" class="form-control">' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label class="form-label">👤 Хто перевіряв *</label>' +
+          '<input type="text" id="insp-inspector" class="form-control" placeholder="ПІБ або посада перевіряючого">' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label class="form-label">📝 Результати перевірки</label>' +
+          '<textarea id="insp-notes" class="form-control" rows="3" placeholder="Короткі нотатки щодо результатів..."></textarea>' +
+        '</div>' +
+        '<div id="insp-err" class="error-msg" style="margin-bottom:6px"></div>' +
+        '<div class="insp-form-actions">' +
+          '<button id="insp-save" class="btn-primary-sm">Зберегти</button>' +
+          '<button id="insp-cancel" class="btn-outline-sm">Скасувати</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  // Summary
+  html += '<div class="checks-summary">' +
+    '<span class="checks-summary-label">Перевірок у ' + now.getFullYear() + ' р.:</span>' +
+    '<span class="checks-summary-count">' + ytd + '</span>' +
+  '</div>';
+
+  // List
+  if (!sorted.length) {
+    html += '<div class="checks-empty">Перевірок не зафіксовано</div>';
+  } else {
+    html += '<div class="checks-list">';
+    sorted.forEach(function(c, i) {
+      html += renderCheckCard(c, i, items);
+    });
+    html += '</div>';
+  }
+
+  panel.innerHTML = html;
+  bindChecksEvents(panel, items, unitId, unitName);
+}
+
+function renderCheckCard(c, idx, allItems) {
+  var dateStr = c.case_date ? new Date(c.case_date).toLocaleDateString('uk-UA',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+  var delBtn = isAdmin()
+    ? '<button class="check-del-btn" data-id="' + escHTML(c.id) + '" title="Видалити">🗑</button>'
+    : '';
+
+  return '<div class="check-card">' +
+    '<div class="check-card-top">' +
+      '<div class="check-date-badge">📅 ' + escHTML(dateStr) + '</div>' +
+      delBtn +
+    '</div>' +
+    '<div class="check-inspector">👤 ' + escHTML(c.title || '—') + '</div>' +
+    (c.description ? '<div class="check-notes">' + escHTML(c.description) + '</div>' : '') +
+  '</div>';
+}
+
+function bindChecksEvents(panel, items, unitId, unitName) {
+  // Toggle add form
+  var toggleBtn = panel.querySelector('#insp-add-toggle');
+  var addForm = panel.querySelector('#insp-add-form');
+  if (toggleBtn && addForm) {
+    toggleBtn.addEventListener('click', function() {
+      addForm.classList.toggle('hidden');
+      toggleBtn.textContent = addForm.classList.contains('hidden') ? '＋ Додати перевірку' : '✕ Скасувати';
+    });
+  }
+
+  // Cancel
+  var cancelBtn = panel.querySelector('#insp-cancel');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function() {
+      if (addForm) addForm.classList.add('hidden');
+      if (toggleBtn) toggleBtn.textContent = '＋ Додати перевірку';
+    });
+  }
+
+  // Save
+  var saveBtn = panel.querySelector('#insp-save');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async function() {
+      var date = panel.querySelector('#insp-date')?.value;
+      var inspector = panel.querySelector('#insp-inspector')?.value.trim();
+      var notes = panel.querySelector('#insp-notes')?.value.trim();
+      var errEl = panel.querySelector('#insp-err');
+
+      if (!date) { errEl.textContent = 'Вкажіть дату перевірки'; return; }
+      if (!inspector) { errEl.textContent = 'Вкажіть хто перевіряв'; return; }
+      errEl.textContent = '';
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Збереження...';
+
+      try {
+        await window.localAPI.fetch('/cases', {
+          method: 'POST',
+          body: JSON.stringify({
+            unit_id: unitId,
+            unit_name: unitName,
+            title: inspector,
+            description: notes || null,
+            case_date: date
+          })
+        });
+        var updated = await loadInspectionsForUnit(unitId);
+        renderChecksList(panel, updated, unitId, unitName);
+      } catch(err) {
+        errEl.textContent = err.message;
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Зберегти';
+      }
+    });
+  }
+
+  // Delete
+  panel.querySelectorAll('.check-del-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+      if (!confirm('Видалити запис про перевірку?')) return;
+      try {
+        await window.localAPI.fetch('/cases/' + btn.dataset.id, { method: 'DELETE' });
+        var updated = await loadInspectionsForUnit(unitId);
+        renderChecksList(panel, updated, unitId, unitName);
+      } catch(e) { alert('Помилка: ' + e.message); }
+    });
+  });
+}
+
+// Backward compat
 window.showUnitCasesModal = function(unitId, unitName) {
   if (window.openUnitSidebar) {
     window.openUnitSidebar({ unitId: String(unitId), unitName: String(unitName) });
   }
 };
 
-// Click on .btn-unit-info (from popup) — handled via onclick attr now, but keep for compat
 document.addEventListener('click', function(e) {
   var btn = e.target.closest('.btn-unit-info');
   if (!btn) return;
