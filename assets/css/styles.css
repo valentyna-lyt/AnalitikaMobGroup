@@ -1284,6 +1284,10 @@ body.dark .check-card { background: #1e3a6e; }
     position: relative;
     grid-template-rows: unset;
     grid-template-columns: unset;
+    /* Keep flex: 1 behavior so body overflow:hidden clips data-controls */
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
   .map-column {
     position: absolute;
@@ -1312,7 +1316,7 @@ body.dark .check-card { background: #1e3a6e; }
   }
 
   /* ── Data controls — hidden on mobile ── */
-  .data-controls { display: none; }
+  .data-controls { display: none !important; }
 
   /* ── Sidebar → bottom sheet ── */
   .sidebar {

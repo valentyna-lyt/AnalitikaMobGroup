@@ -83,12 +83,15 @@
     });
   }
 
-  // ── Map tap → collapse sheet ────────────────────────────────────────────────
+  // ── Map tap → collapse sheet (but NOT when tapping inside a popup) ──────────
   function setupMapCollapse() {
     var mapEl = document.getElementById('map');
     if (!mapEl) return;
-    mapEl.addEventListener('click', function () {
-      if (isSheetOpen()) { collapseSheet(); closeFilterPanel(); }
+    mapEl.addEventListener('click', function (e) {
+      if (!isSheetOpen()) return;
+      if (e.target.closest('.leaflet-popup')) return; // popup buttons must stay clickable
+      collapseSheet();
+      closeFilterPanel();
     });
   }
 
