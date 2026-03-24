@@ -34,7 +34,7 @@
   });
 
   // ── 4. Watermark builder ──────────────────────────────────────────────────
-  function buildWatermark() {
+  function buildWatermark(extraClass) {
     var email = (window.currentUser && window.currentUser.email) || 'unauthorized';
     var name  = (window.currentUser && window.currentUser.full_name) || '';
     var now   = new Date();
@@ -43,7 +43,7 @@
     var line = (name ? name + ' · ' : '') + email + ' · ' + dateStr;
 
     var wm = document.createElement('div');
-    wm.className = 'doc-watermark';
+    wm.className = 'doc-watermark' + (extraClass ? ' ' + extraClass : '');
     wm.setAttribute('aria-hidden', 'true');
     wm.setAttribute('data-user', email);
 
@@ -57,9 +57,18 @@
   }
 
   function attachWatermark(overlay) {
-    var old = overlay.querySelector('.doc-watermark');
+    // 1. Overlay-level watermark (light text — visible on dark background areas)
+    var old = overlay.querySelector(':scope > .doc-watermark');
     if (old) old.remove();
     overlay.appendChild(buildWatermark());
+
+    // 2. Content-level watermark (dark text — visible on white docx pages and PDF)
+    var content = document.getElementById('dv-content');
+    if (content) {
+      var oldCw = content.querySelector('.doc-watermark-content');
+      if (oldCw) oldCw.remove();
+      content.appendChild(buildWatermark('doc-watermark-content'));
+    }
   }
 
   // ── 5. Watch doc-viewer-overlay for visibility changes ───────────────────
