@@ -28,6 +28,26 @@ window.loadSidebarChecks = async function(unitId, unitName) {
 
   try {
     var items = await loadInspectionsForUnit(unitId);
+
+    // Inject CSV-derived baseline record (last_check / inspectors from state)
+    var unitRow = (window.state && window.state.data || []).find(function(d) {
+      return String(d.id) === String(unitId);
+    });
+    if (unitRow && unitRow.last_check) {
+      var alreadyInDB = items.some(function(c) {
+        return c.case_date && c.case_date.slice(0, 10) === unitRow.last_check.slice(0, 10) && !c._fromCSV;
+      });
+      if (!alreadyInDB) {
+        items = [{
+          id: '_csv_' + unitId,
+          case_date: unitRow.last_check,
+          title: unitRow.inspectors || '—',
+          description: null,
+          _fromCSV: true
+        }].concat(items);
+      }
+    }
+
     renderChecksList(panel, items, unitId, unitName);
   } catch(e) {
     panel.innerHTML = '<div class="error-msg" style="padding:16px">⚠️ ' + escHTML(e.message) + '</div>';
@@ -96,7 +116,7 @@ function renderChecksList(panel, items, unitId, unitName) {
 
 function renderCheckCard(c, idx, allItems) {
   var dateStr = c.case_date ? new Date(c.case_date).toLocaleDateString('uk-UA',{day:'2-digit',month:'long',year:'numeric'}) : '—';
-  var delBtn = isAdmin()
+  var delBtn = (isAdmin() && !c._fromCSV)
     ? '<button class="check-del-btn" data-id="' + escHTML(c.id) + '" title="Видалити">🗑</button>'
     : '';
 
