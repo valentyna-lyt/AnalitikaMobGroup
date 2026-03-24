@@ -20,21 +20,17 @@
 <div id="auth-overlay" style="display:none">
   <div class="auth-screen">
     <div class="auth-card">
-      <!-- Branding -->
+
+      <!-- Branding block — all centered vertically -->
       <div class="auth-brand">
         <img src="assets/img/emblem.png" alt="Емблема ГУНП" class="auth-emblem">
-        <div class="auth-brand-text">
-          <div class="auth-org">УПРАВЛІННЯ ГОЛОВНОЇ ІНСПЕКЦІЇ</div>
-          <div class="auth-org-sub">ГУНП В ХАРКІВСЬКІЙ ОБЛАСТІ</div>
-          <div class="auth-project">Контроль за діяльністю підрозділів</div>
-        </div>
+        <div class="auth-org">УПРАВЛІННЯ ГОЛОВНОЇ ІНСПЕКЦІЇ</div>
+        <div class="auth-org-sub">ГУНП В ХАРКІВСЬКІЙ ОБЛАСТІ</div>
+        <div class="auth-project">Контроль за діяльністю підрозділів</div>
       </div>
 
-      <div class="auth-divider"></div>
-
       <!-- Login form -->
-      <div id="auth-login">
-        <p class="auth-form-title">Вхід до системи</p>
+      <div id="auth-login" class="auth-form-wrap">
         <form id="auth-login-form">
           <div class="auth-field">
             <label class="auth-label">Email</label>
@@ -49,9 +45,8 @@
         </form>
       </div>
 
-      <!-- Change password form (hidden by default) -->
-      <div id="auth-change-password" style="display:none">
-        <p class="auth-form-title">Зміна пароля</p>
+      <!-- Change password form -->
+      <div id="auth-change-password" class="auth-form-wrap" style="display:none">
         <form id="auth-change-password-form">
           <div class="auth-field">
             <label class="auth-label">Новий пароль</label>
@@ -65,6 +60,7 @@
           <button type="submit" class="auth-submit-btn">Зберегти пароль</button>
         </form>
       </div>
+
     </div>
   </div>
 </div>
