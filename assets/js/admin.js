@@ -220,6 +220,11 @@ async function refreshAdminUsers() {
   tbody.innerHTML = '<tr><td colspan="7" class="loading">Завантаження...</td></tr>';
 
   try {
+    // Reload hrups list each time so the kushch column is always populated
+    try {
+      var hrupsList = await window.localAPI.fetch('/hrups');
+      window._adminHrups = Array.isArray(hrupsList) ? hrupsList : [];
+    } catch(e) { window._adminHrups = window._adminHrups || []; }
     var users = await window.localAPI.fetch('/users');
     if (countEl) countEl.textContent = 'Користувачів: ' + users.length;
 
@@ -244,8 +249,9 @@ async function refreshAdminUsers() {
         hrups.map(function(h){ return '<option value="'+escHTML(h)+'"'+(h===current?' selected':'')+'>'+escHTML(h)+'</option>'; }).join('') +
       '</select>';
     }
+    var meId = window.currentUser && window.currentUser.id;
     tbody.innerHTML = users.map(function(u) {
-      var canDel = u.role !== 'admin' || users.filter(function(x){ return x.role==='admin'; }).length > 1;
+      var isMe = u.id === meId;
       return '<tr data-uid="' + escHTML(u.id) + '">' +
         '<td>' + escHTML(u.email) + '</td>' +
         '<td>' + escHTML(u.full_name || '—') + '</td>' +
@@ -253,8 +259,9 @@ async function refreshAdminUsers() {
         '<td><button class="pwd-mask admin-pwd-user" data-id="' + escHTML(u.id) + '" data-email="' + escHTML(u.email) + '" title="Натисніть щоб задати новий пароль">••••••••</button></td>' +
         '<td>' + hrupSelectHTML(u.id, u.assigned_hrup, u.role) + '</td>' +
         '<td>' + new Date(u.created_at).toLocaleDateString('uk-UA') + '</td>' +
-        '<td style="white-space:nowrap">' +
-          (canDel ? '<button class="btn-sm btn-danger admin-del-user" data-id="' + escHTML(u.id) + '">🗑️</button>' : '') +
+        '<td style="white-space:nowrap;text-align:center">' +
+          (isMe ? '<span style="opacity:.4" title="Це ви">—</span>'
+                : '<button class="btn-sm btn-danger admin-del-user" data-id="' + escHTML(u.id) + '" data-email="' + escHTML(u.email) + '" title="Видалити користувача">🗑️</button>') +
         '</td>' +
         '</tr>';
     }).join('');
@@ -301,11 +308,12 @@ async function refreshAdminUsers() {
 
     tbody.querySelectorAll('.admin-del-user').forEach(function(btn) {
       btn.addEventListener('click', async function() {
-        if (!confirm('Видалити користувача?')) return;
+        if (!confirm('Видалити користувача "' + (btn.dataset.email||'') + '"? Цю дію не можна скасувати.')) return;
+        btn.disabled = true;
         try {
           await window.localAPI.fetch('/users/' + btn.dataset.id, { method: 'DELETE' });
           await refreshAdminUsers();
-        } catch(e) { alert(e.message); }
+        } catch(e) { alert('Помилка видалення: ' + e.message); btn.disabled = false; }
       });
     });
 
