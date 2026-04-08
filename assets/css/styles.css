@@ -448,6 +448,12 @@ textarea.cs-input { resize: vertical; min-height: 60px; font-family: inherit; }
 .section-title-mt { margin-top: 22px; }
 
 /* ── Mobile Groups Schedule ───────────────────────────────── */
+.mg-main-title {
+  margin: 0; padding: 14px 14px 4px;
+  font-size: 15px; font-weight: 800; text-align: center;
+  color: var(--accent,#1f3d8a); line-height: 1.25;
+  text-transform: uppercase; letter-spacing: .3px;
+}
 .sidebar-tabs { display:flex; gap:4px; padding:8px 12px 0; }
 .sb-tab {
   flex:1; padding:9px 10px; border:none; cursor:pointer; font-weight:600;
