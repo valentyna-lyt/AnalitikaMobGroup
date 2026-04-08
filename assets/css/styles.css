@@ -1834,9 +1834,14 @@ body.dark .check-card.check-card-y2026 {
 }
 .checks-year-divider span {
   display: inline-block;
-  padding: 2px 10px;
-  border-radius: 10px;
+  padding: 4px 14px;
+  border-radius: 14px;
   font-size: 12px; font-weight: 700;
+  color: #fff !important;
+  background: linear-gradient(135deg,#3a6ee0,#5a8df0);
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+  letter-spacing: .5px;
+  text-transform: uppercase;
 }
 .checks-year-divider {
   text-align: center;
