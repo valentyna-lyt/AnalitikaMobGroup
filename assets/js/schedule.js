@@ -13,7 +13,11 @@
     return out;
   }
 
-  function isAdmin(){ return !window.IS_MOBILE_VIEWER && window.currentUser && window.currentUser.role === 'admin'; }
+  function isAdmin(){
+    if (window.IS_MOBILE_VIEWER) return false;
+    var u = window.currentUser;
+    return !!(u && (u.role === 'admin' || u.role === 'manager'));
+  }
 
   async function loadOfficers(){
     try { state.officers = await window.localAPI.fetch('/mg/officers'); }

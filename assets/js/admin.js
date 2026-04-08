@@ -228,17 +228,18 @@ async function refreshAdminUsers() {
       return;
     }
 
-    var roleLabels = { admin: 'Адмін', curator: 'Куратор', viewer: 'Перегляд' };
+    var roleLabels = { admin: 'Адмін', manager: 'Керівник', curator: 'Куратор', viewer: 'Перегляд' };
     var hrups = window._adminHrups || [];
     function roleSelectHTML(uid, current) {
       return '<select class="role-select" data-id="' + escHTML(uid) + '">' +
-        ['admin','curator','viewer'].map(function(r){
+        ['admin','manager','curator','viewer'].map(function(r){
           return '<option value="'+r+'"'+(r===current?' selected':'')+'>'+roleLabels[r]+'</option>';
         }).join('') +
       '</select>';
     }
     function hrupSelectHTML(uid, current, role) {
-      return '<select class="hrup-select" data-id="' + escHTML(uid) + '">' +
+      var disabled = (role !== 'curator') ? ' disabled' : '';
+      return '<select class="hrup-select" data-id="' + escHTML(uid) + '"'+disabled+'>' +
         '<option value="">—</option>' +
         hrups.map(function(h){ return '<option value="'+escHTML(h)+'"'+(h===current?' selected':'')+'>'+escHTML(h)+'</option>'; }).join('') +
       '</select>';
@@ -270,6 +271,7 @@ async function refreshAdminUsers() {
         var hrupSel = row.querySelector('.hrup-select');
         var body = { role: newRole };
         if (newRole === 'curator') {
+          if (hrupSel) hrupSel.disabled = false;
           if (hrupSel && !hrupSel.value) {
             alert('Оберіть кущ для куратора у колонці "Кущ"');
             return;
@@ -277,7 +279,7 @@ async function refreshAdminUsers() {
           if (hrupSel) body.assigned_hrup = hrupSel.value;
         } else {
           body.assigned_hrup = null;
-          if (hrupSel) hrupSel.value = '';
+          if (hrupSel) { hrupSel.value = ''; hrupSel.disabled = true; }
         }
         await patchUser(uid, body);
       });
