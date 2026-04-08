@@ -177,10 +177,30 @@
     }
   }
 
+  function updateStats(){
+    var elAll  = document.getElementById('mg-stat-all');
+    var el2026 = document.getElementById('mg-stat-2026');
+    if (!elAll || !el2026) return;
+    var rows = (window.state && Array.isArray(window.state.data)) ? window.state.data : [];
+    var totalAll = 0;
+    try {
+      var st = window._unitsTableStats || {};
+      Object.keys(st).forEach(function(k){ totalAll += Number(st[k].checks_total || 0); });
+    } catch(e) {}
+    if (!totalAll) totalAll = rows.reduce(function(s,r){ return s + Number(r.ytd||0) + Number(r.checks_2025||0); }, 0);
+    var total2026 = rows.reduce(function(s,r){ return s + Number(r.ytd||0); }, 0);
+    elAll.textContent = totalAll || 0;
+    el2026.textContent = total2026 || 0;
+  }
+
   async function refresh(){
     await Promise.all([loadOfficers(), loadSchedule()]);
     render();
+    updateStats();
   }
+  // Refresh stats whenever main data updates
+  document.addEventListener('analitikaDataLoaded', updateStats);
+  setInterval(updateStats, 5000);
 
   function shiftMonth(delta){
     var d = new Date(state.year, state.month+delta, 1);

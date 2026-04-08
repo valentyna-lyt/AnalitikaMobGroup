@@ -8,8 +8,8 @@
   <script>
     // FORCE-RESET: unregister stale service workers and clear caches once
     (function(){
-      if (sessionStorage.getItem('sw_reset_v215')) return;
-      sessionStorage.setItem('sw_reset_v215','1');
+      if (sessionStorage.getItem('sw_reset_v216')) return;
+      sessionStorage.setItem('sw_reset_v216','1');
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(rs){
           rs.forEach(function(r){ r.unregister(); });
@@ -46,7 +46,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
 
   <!-- App styles -->
-  <link rel="stylesheet" href="assets/css/styles.css?v=215">
+  <link rel="stylesheet" href="assets/css/styles.css?v=216">
 </head>
 <body>
 
@@ -323,6 +323,16 @@
           <button class="mg-btn-primary" id="mg-save-pdf">📄 Зберегти у PDF</button>
         </div>
         <div class="mg-legend">Натисніть на клітинку, щоб позначити робочий вихідний день</div>
+        <div class="mg-stats" id="mg-stats">
+          <div class="mg-stat-card">
+            <span class="mg-stat-value" id="mg-stat-all">—</span>
+            <span class="mg-stat-label">Усього перевірок<br><small>з 2025 року</small></span>
+          </div>
+          <div class="mg-stat-card mg-stat-card-accent">
+            <span class="mg-stat-value" id="mg-stat-2026">—</span>
+            <span class="mg-stat-label">Перевірок<br><small>у 2026 році</small></span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -409,7 +419,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<script src="assets/js/app.bundle.js?v=215"></script>
+<script src="assets/js/app.bundle.js?v=216"></script>
 <script>
 // Sync filter selects with hidden radio inputs
 document.getElementById('filter-period-sel').addEventListener('change', function() {
@@ -432,18 +442,18 @@ document.querySelectorAll('input[name="mapmode"]').forEach(function(r) {
   });
 });
 </script>
-<script src="assets/js/api.js?v=215"></script>
-<script src="assets/js/auth.js?v=215"></script>
-<script src="assets/js/schedule.js?v=215"></script>
-<script src="assets/js/cases.js?v=215"></script>
-<script src="assets/js/admin.js?v=215"></script>
-<script src="assets/js/files.js?v=215"></script>
-<script src="assets/js/curator-sections.js?v=215"></script>
-<script src="assets/js/protect.js?v=215"></script>
-<script src="assets/js/mobile.js?v=215"></script>
+<script src="assets/js/api.js?v=216"></script>
+<script src="assets/js/auth.js?v=216"></script>
+<script src="assets/js/schedule.js?v=216"></script>
+<script src="assets/js/cases.js?v=216"></script>
+<script src="assets/js/admin.js?v=216"></script>
+<script src="assets/js/files.js?v=216"></script>
+<script src="assets/js/curator-sections.js?v=216"></script>
+<script src="assets/js/protect.js?v=216"></script>
+<script src="assets/js/mobile.js?v=216"></script>
 <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js?v=215', { updateViaCache: 'none' }).catch(function(){});
+    navigator.serviceWorker.register('/sw.js?v=216', { updateViaCache: 'none' }).catch(function(){});
   }
 </script>
 
