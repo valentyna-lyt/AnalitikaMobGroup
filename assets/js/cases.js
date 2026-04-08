@@ -27,33 +27,20 @@ window.loadSidebarChecks = async function(unitId, unitName, unitRow) {
   panel.innerHTML = '<div class="loading" style="padding:24px;text-align:center">Завантаження...</div>';
 
   try {
+    console.log('[checks] loading for unitId=', unitId, 'name=', unitName);
     var items = await loadInspectionsForUnit(unitId);
-
-    // Inject CSV-derived baseline record (last_check / last_inspector from unit data)
-    if (unitRow && unitRow.last_check) {
-      // Convert DD.MM.YYYY → YYYY-MM-DD so Date() can parse it
-      var rawDate = String(unitRow.last_check);
-      var ddmm = rawDate.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-      var isoDate = ddmm
-        ? ddmm[3] + '-' + ('0'+ddmm[2]).slice(-2) + '-' + ('0'+ddmm[1]).slice(-2)
-        : rawDate;
-      var alreadyInDB = items.some(function(c) {
-        return c.case_date && c.case_date.slice(0, 10) === isoDate.slice(0, 10) && !c._fromCSV;
-      });
-      if (!alreadyInDB) {
-        items = [{
-          id: '_csv_' + unitId,
-          case_date: isoDate,
-          title: unitRow.last_inspector || unitRow.inspectors || '—',
-          description: null,
-          _fromCSV: true
-        }].concat(items);
-      }
-    }
-
+    console.log('[checks] got', Array.isArray(items) ? items.length : items, 'items');
+    if (!Array.isArray(items)) items = [];
     renderChecksList(panel, items, unitId, unitName);
+    if (!items.length) {
+      var dbg = document.createElement('div');
+      dbg.style.cssText = 'padding:8px;font-size:11px;color:#999;text-align:center';
+      dbg.textContent = 'debug: unitId="' + unitId + '"';
+      panel.appendChild(dbg);
+    }
   } catch(e) {
-    panel.innerHTML = '<div class="error-msg" style="padding:16px">⚠️ ' + escHTML(e.message) + '</div>';
+    console.error('[checks] error:', e);
+    panel.innerHTML = '<div class="error-msg" style="padding:16px">⚠️ ' + escHTML(e.message) + '<br><small>unitId=' + escHTML(String(unitId)) + '</small></div>';
   }
 };
 
@@ -64,14 +51,18 @@ function renderChecksList(panel, items, unitId, unitName) {
   });
 
   var now = new Date();
-  var ytd = sorted.filter(function(c){
-    return c.case_date && new Date(c.case_date).getFullYear() === now.getFullYear();
-  }).length;
+  var byYear = {};
+  sorted.forEach(function(c){
+    if (!c.case_date) return;
+    var y = new Date(c.case_date).getFullYear();
+    if (!isNaN(y)) byYear[y] = (byYear[y]||0) + 1;
+  });
+  var years = Object.keys(byYear).map(Number).sort(function(a,b){return b-a;});
 
   var html = '';
 
-  // Admin: add form
-  if (isAdmin()) {
+  // Admin: add form (not on mobile viewer)
+  if (isAdmin() && !window.IS_MOBILE_VIEWER) {
     html += '<div class="insp-add-wrap">' +
       '<button class="btn-add-insp" id="insp-add-toggle">＋ Додати перевірку</button>' +
       '<div class="insp-add-form hidden" id="insp-add-form">' +
@@ -96,18 +87,31 @@ function renderChecksList(panel, items, unitId, unitName) {
     '</div>';
   }
 
-  // Summary
-  html += '<div class="checks-summary">' +
-    '<span class="checks-summary-label">Перевірок у ' + now.getFullYear() + ' р.:</span>' +
-    '<span class="checks-summary-count">' + ytd + '</span>' +
-  '</div>';
+  // Summary by year
+  if (years.length) {
+    html += '<div class="checks-summary-grid">';
+    years.forEach(function(y){
+      html += '<div class="checks-summary"><span class="checks-summary-label">У ' + y + ' р.:</span>' +
+              '<span class="checks-summary-count">' + byYear[y] + '</span></div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div class="checks-summary"><span class="checks-summary-label">Перевірок:</span>' +
+            '<span class="checks-summary-count">0</span></div>';
+  }
 
   // List
   if (!sorted.length) {
     html += '<div class="checks-empty">Перевірок не зафіксовано</div>';
   } else {
     html += '<div class="checks-list">';
+    var lastYear = null;
     sorted.forEach(function(c, i) {
+      var y = c.case_date ? new Date(c.case_date).getFullYear() : null;
+      if (y && y !== lastYear) {
+        html += '<div class="checks-year-divider"><span>' + y + ' рік</span></div>';
+        lastYear = y;
+      }
       html += renderCheckCard(c, i, items);
     });
     html += '</div>';
@@ -119,11 +123,13 @@ function renderChecksList(panel, items, unitId, unitName) {
 
 function renderCheckCard(c, idx, allItems) {
   var dateStr = c.case_date ? new Date(c.case_date).toLocaleDateString('uk-UA',{day:'2-digit',month:'long',year:'numeric'}) : '—';
-  var delBtn = (isAdmin() && !c._fromCSV)
+  var year = c.case_date ? new Date(c.case_date).getFullYear() : null;
+  var yearCls = year ? (' check-card-y' + year) : '';
+  var delBtn = (isAdmin() && !window.IS_MOBILE_VIEWER && !c._fromCSV)
     ? '<button class="check-del-btn" data-id="' + escHTML(c.id) + '" title="Видалити">🗑</button>'
     : '';
 
-  return '<div class="check-card">' +
+  return '<div class="check-card' + yearCls + '">' +
     '<div class="check-card-top">' +
       '<div class="check-date-badge">📅 ' + escHTML(dateStr) + '</div>' +
       delBtn +

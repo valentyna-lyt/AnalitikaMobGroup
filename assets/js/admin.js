@@ -8,36 +8,21 @@ async function openAdminPanel(tab, preselectUnitId) {
   if (!isAdmin()) { alert('Доступ заборонено'); return; }
   var modal = document.getElementById('admin-modal');
   modal.showModal();
-
-  if (tab === 'files') {
-    switchAdminTab('files');
-    if (preselectUnitId) {
-      var sel = document.getElementById('admin-upload-unit-sel');
-      if (sel) sel.value = String(preselectUnitId);
-      await refreshAdminFilesList(preselectUnitId);
-    }
-  } else {
-    switchAdminTab('cases');
-    await refreshAdminTable();
-  }
+  await loadHrupsIntoSelect();
+  await refreshAdminUsers();
 }
 window.openAdminPanel = openAdminPanel;
 
-function switchAdminTab(tab) {
-  var tabs = ['cases', 'files', 'users'];
-  tabs.forEach(function(t) {
-    var btn = document.getElementById('admin-tab-' + t);
-    var panel = document.getElementById('admin-' + t + '-panel');
-    if (!btn || !panel) return;
-    if (t === tab) {
-      btn.classList.add('active');
-      panel.style.display = 'block';
-    } else {
-      btn.classList.remove('active');
-      panel.style.display = 'none';
-    }
-  });
-  if (tab === 'files') populateUnitSelector();
+function switchAdminTab() { /* only users tab now */ }
+
+async function loadHrupsIntoSelect() {
+  try {
+    var hrups = await window.localAPI.fetch('/hrups');
+    var sel = document.getElementById('new-user-hrup');
+    if (sel) sel.innerHTML = '<option value="">— оберіть кущ —</option>' +
+      hrups.map(function(h){ return '<option value="'+escHTML(h)+'">'+escHTML(h)+'</option>'; }).join('');
+    window._adminHrups = hrups;
+  } catch(e){}
 }
 
 // ============================================================
@@ -232,30 +217,85 @@ async function refreshAdminUsers() {
   var tbody = document.getElementById('admin-users-tbody');
   var countEl = document.getElementById('admin-users-count');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="5" class="loading">Завантаження...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" class="loading">Завантаження...</td></tr>';
 
   try {
     var users = await window.localAPI.fetch('/users');
     if (countEl) countEl.textContent = 'Користувачів: ' + users.length;
 
     if (!users.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="no-data">Користувачів немає</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="no-data">Користувачів немає</td></tr>';
       return;
     }
 
+    var roleLabels = { admin: 'Адмін', curator: 'Куратор', viewer: 'Перегляд' };
+    var hrups = window._adminHrups || [];
+    function roleSelectHTML(uid, current) {
+      return '<select class="role-select" data-id="' + escHTML(uid) + '">' +
+        ['admin','curator','viewer'].map(function(r){
+          return '<option value="'+r+'"'+(r===current?' selected':'')+'>'+roleLabels[r]+'</option>';
+        }).join('') +
+      '</select>';
+    }
+    function hrupSelectHTML(uid, current, role) {
+      return '<select class="hrup-select" data-id="' + escHTML(uid) + '">' +
+        '<option value="">—</option>' +
+        hrups.map(function(h){ return '<option value="'+escHTML(h)+'"'+(h===current?' selected':'')+'>'+escHTML(h)+'</option>'; }).join('') +
+      '</select>';
+    }
     tbody.innerHTML = users.map(function(u) {
       var canDel = u.role !== 'admin' || users.filter(function(x){ return x.role==='admin'; }).length > 1;
-      return '<tr>' +
+      return '<tr data-uid="' + escHTML(u.id) + '">' +
         '<td>' + escHTML(u.email) + '</td>' +
         '<td>' + escHTML(u.full_name || '—') + '</td>' +
-        '<td><span class="badge badge-' + (u.role === 'admin' ? 'bad' : 'info') + '">' + escHTML(u.role) + '</span></td>' +
+        '<td>' + roleSelectHTML(u.id, u.role) + '</td>' +
+        '<td><button class="pwd-mask admin-pwd-user" data-id="' + escHTML(u.id) + '" data-email="' + escHTML(u.email) + '" title="Натисніть щоб задати новий пароль">••••••••</button></td>' +
+        '<td>' + hrupSelectHTML(u.id, u.assigned_hrup, u.role) + '</td>' +
         '<td>' + new Date(u.created_at).toLocaleDateString('uk-UA') + '</td>' +
         '<td style="white-space:nowrap">' +
-          '<button class="btn-sm admin-pwd-user" data-id="' + escHTML(u.id) + '" data-email="' + escHTML(u.email) + '" title="Змінити пароль">🔑</button>' +
-          (canDel ? ' <button class="btn-sm btn-danger admin-del-user" data-id="' + escHTML(u.id) + '">🗑️</button>' : '') +
+          (canDel ? '<button class="btn-sm btn-danger admin-del-user" data-id="' + escHTML(u.id) + '">🗑️</button>' : '') +
         '</td>' +
         '</tr>';
     }).join('');
+
+    async function patchUser(uid, body) {
+      try { await window.localAPI.fetch('/users/' + uid, { method:'PATCH', body: JSON.stringify(body) }); }
+      catch(e) { alert('Помилка: ' + e.message); await refreshAdminUsers(); }
+    }
+    tbody.querySelectorAll('.role-select').forEach(function(sel){
+      sel.addEventListener('change', async function(){
+        var uid = sel.dataset.id;
+        var newRole = sel.value;
+        var row = sel.closest('tr');
+        var hrupSel = row.querySelector('.hrup-select');
+        var body = { role: newRole };
+        if (newRole === 'curator') {
+          if (hrupSel && !hrupSel.value) {
+            alert('Оберіть кущ для куратора у колонці "Кущ"');
+            return;
+          }
+          if (hrupSel) body.assigned_hrup = hrupSel.value;
+        } else {
+          body.assigned_hrup = null;
+          if (hrupSel) hrupSel.value = '';
+        }
+        await patchUser(uid, body);
+      });
+    });
+    tbody.querySelectorAll('.hrup-select').forEach(function(sel){
+      sel.addEventListener('change', async function(){
+        var uid = sel.dataset.id;
+        var row = sel.closest('tr');
+        var roleSel = row.querySelector('.role-select');
+        var body = { assigned_hrup: sel.value || null };
+        // If a kushch is assigned, auto-promote to curator
+        if (sel.value && roleSel && roleSel.value !== 'curator' && roleSel.value !== 'admin') {
+          body.role = 'curator';
+          roleSel.value = 'curator';
+        }
+        await patchUser(uid, body);
+      });
+    });
 
     tbody.querySelectorAll('.admin-del-user').forEach(function(btn) {
       btn.addEventListener('click', async function() {
@@ -281,7 +321,7 @@ async function refreshAdminUsers() {
       });
     });
   } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="5" class="error-msg">' + escHTML(e.message) + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="error-msg">' + escHTML(e.message) + '</td></tr>';
   }
 }
 
@@ -347,18 +387,35 @@ function bindAdminUI() {
     var form = document.getElementById('admin-add-user-form');
     if (form) form.classList.add('hidden');
   });
+  document.querySelectorAll('.pwd-eye').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var inp = document.getElementById(btn.dataset.target);
+      if (!inp) return;
+      var show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password';
+      btn.classList.toggle('on', show);
+      btn.textContent = show ? '🙈' : '👁';
+    });
+  });
+  document.getElementById('new-user-role')?.addEventListener('change', function(e){
+    var wrap = document.getElementById('new-user-hrup-wrap');
+    if (wrap) wrap.style.display = e.target.value === 'curator' ? '' : 'none';
+  });
+
   document.getElementById('save-user-btn')?.addEventListener('click', async function() {
     var email = document.getElementById('new-user-email')?.value.trim();
     var password = document.getElementById('new-user-password')?.value;
     var full_name = document.getElementById('new-user-name')?.value.trim();
     var role = document.getElementById('new-user-role')?.value;
+    var assigned_hrup = document.getElementById('new-user-hrup')?.value || null;
     var errEl = document.getElementById('add-user-error');
     if (errEl) errEl.textContent = '';
     if (!email || !password) { if (errEl) errEl.textContent = 'Email та пароль обовʼязкові'; return; }
     if (password.length < 6) { if (errEl) errEl.textContent = 'Пароль мінімум 6 символів'; return; }
+    if (role === 'curator' && !assigned_hrup) { if (errEl) errEl.textContent = 'Оберіть кущ для куратора'; return; }
     try {
       await window.localAPI.fetch('/users', { method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ email, password, full_name, role }) });
+        body: JSON.stringify({ email: email, password: password, full_name: full_name, role: role, assigned_hrup: assigned_hrup }) });
       // Reset form
       ['new-user-email','new-user-password','new-user-name'].forEach(function(id) {
         var el = document.getElementById(id); if (el) el.value = '';

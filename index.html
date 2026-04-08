@@ -5,8 +5,8 @@
   <script>
     // FORCE-RESET: unregister stale service workers and clear caches once
     (function(){
-      if (sessionStorage.getItem('sw_reset_v203')) return;
-      sessionStorage.setItem('sw_reset_v203','1');
+      if (sessionStorage.getItem('sw_reset_v204')) return;
+      sessionStorage.setItem('sw_reset_v204','1');
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(rs){
           rs.forEach(function(r){ r.unregister(); });
@@ -43,7 +43,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
 
   <!-- App styles -->
-  <link rel="stylesheet" href="assets/css/styles.css?v=203">
+  <link rel="stylesheet" href="assets/css/styles.css?v=204">
 </head>
 <body>
 
@@ -346,41 +346,16 @@
 
     <!-- Default view: KPI + units table -->
     <div id="sidebar-default">
-      <!-- Tab switcher: Units / Schedule -->
-      <div class="sidebar-tabs">
-        <button class="sb-tab active" data-view="units">📋 Підрозділи</button>
-        <button class="sb-tab" data-view="schedule">📅 Графік МГ</button>
-      </div>
-
-      <!-- VIEW: UNITS -->
-      <div id="view-units">
+      <!-- Hidden elements kept for legacy JS compatibility -->
+      <div id="view-units" class="hidden">
         <div id="kpi-box"></div>
-        <div class="units-table-toolbar">
-          <input type="search" id="units-table-search" placeholder="🔍 Пошук підрозділу…">
-          <select id="units-table-level-filter">
-            <option value="">Всі рівні</option>
-            <option value="ГУНП">ГУНП</option>
-            <option value="ХРУП">ХРУП</option>
-            <option value="ВП">ВП</option>
-            <option value="ВнП">ВнП</option>
-          </select>
-        </div>
-        <div class="units-table-wrap">
-          <table class="units-main-table">
-            <thead>
-              <tr>
-                <th>Підрозділ</th>
-                <th title="Особовий склад">Ос. склад</th>
-                <th title="Перевірок з початку року">Перевірок (рік)</th>
-              </tr>
-            </thead>
-            <tbody id="units-main-tbody"></tbody>
-          </table>
-        </div>
+        <input type="search" id="units-table-search" hidden>
+        <select id="units-table-level-filter" hidden></select>
+        <table class="units-main-table" hidden><tbody id="units-main-tbody"></tbody></table>
       </div>
 
       <!-- VIEW: SCHEDULE (mobile groups, weekends) -->
-      <div id="view-schedule" class="hidden">
+      <div id="view-schedule">
         <div class="mg-header">
           <button class="mg-nav" id="mg-prev" title="Попередній місяць">‹</button>
           <h3 id="mg-title">—</h3>
@@ -483,7 +458,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<script src="assets/js/app.bundle.js?v=203"></script>
+<script src="assets/js/app.bundle.js?v=204"></script>
 <script>
 // Sync filter selects with hidden radio inputs
 document.getElementById('filter-period-sel').addEventListener('change', function() {
@@ -506,18 +481,18 @@ document.querySelectorAll('input[name="mapmode"]').forEach(function(r) {
   });
 });
 </script>
-<script src="assets/js/api.js?v=203"></script>
-<script src="assets/js/auth.js?v=203"></script>
-<script src="assets/js/schedule.js?v=203"></script>
-<script src="assets/js/cases.js?v=203"></script>
-<script src="assets/js/admin.js?v=203"></script>
-<script src="assets/js/files.js?v=203"></script>
-<script src="assets/js/curator-sections.js?v=203"></script>
-<script src="assets/js/protect.js?v=203"></script>
-<script src="assets/js/mobile.js?v=203"></script>
+<script src="assets/js/api.js?v=204"></script>
+<script src="assets/js/auth.js?v=204"></script>
+<script src="assets/js/schedule.js?v=204"></script>
+<script src="assets/js/cases.js?v=204"></script>
+<script src="assets/js/admin.js?v=204"></script>
+<script src="assets/js/files.js?v=204"></script>
+<script src="assets/js/curator-sections.js?v=204"></script>
+<script src="assets/js/protect.js?v=204"></script>
+<script src="assets/js/mobile.js?v=204"></script>
 <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js?v=203', { updateViaCache: 'none' }).catch(function(){});
+    navigator.serviceWorker.register('/sw.js?v=204', { updateViaCache: 'none' }).catch(function(){});
   }
 </script>
 

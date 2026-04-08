@@ -425,12 +425,16 @@ function popupHTML(d){
     </div>
     <div class="popup-body">
       <div class="popup-stats">
-        <div class="popup-stat"><span class="ps-val">${today}</span><span class="ps-lbl">сьогодні</span></div>
         <div class="popup-stat"><span class="ps-val">${ytd}</span><span class="ps-lbl">за рік</span></div>
-        <div class="popup-stat"><span class="ps-val">${lastCheck}</span><span class="ps-lbl">остання</span></div>
+        <div class="popup-stat popup-stat-wide">
+          <span class="ps-val">${lastCheck}</span>
+          <span class="ps-lbl">${inspector ? 'останній: ' + inspector : 'остання перевірка'}</span>
+        </div>
       </div>
-      ${inspector ? `<div class="popup-inspector">Мобільна група: ${inspector}</div>` : ''}
-      <button class="popup-detail-btn" data-unit-id="${d.id||''}" data-unit-name="${safeName}" onclick="window.openUnitSidebar&&window.openUnitSidebar(this.dataset)">📋 Файли та справи</button>
+      <div class="popup-actions">
+        <button class="popup-detail-btn" data-unit-id="${d.id||''}" data-unit-name="${safeName}" data-tab="checks" onclick="window.openUnitSidebar&&window.openUnitSidebar(this.dataset)">📊 Перевірки</button>
+        <button class="popup-detail-btn popup-detail-btn-alt" data-unit-id="${d.id||''}" data-unit-name="${safeName}" data-tab="curator" onclick="window.openUnitSidebar&&window.openUnitSidebar(this.dataset)">📂 Кураторська справа</button>
+      </div>
     </div>
   </div>`;
 }
@@ -450,8 +454,14 @@ window.openUnitSidebar = function(dataset) {
     metaEl.textContent = (unit.level || '') + (unit.parent ? ' · ' + unit.parent : '') +
       (unit.ytd ? ' · Перевірок за рік: ' + unit.ytd : '');
   }
-  // Activate checks tab by default
-  window.switchSidebarTab('checks');
+  // Activate requested tab (default: checks)
+  var _curatorLoaded = false;
+  var initialTab = (dataset.tab === 'curator') ? 'curator' : 'checks';
+  window.switchSidebarTab(initialTab);
+  if (initialTab === 'curator' && typeof window.loadAndRenderCuratorTab === 'function') {
+    _curatorLoaded = true;
+    setTimeout(function(){ window.loadAndRenderCuratorTab(unitId, unitName); }, 0);
+  }
   // Find unit row so CSV last_check/inspectors can be shown in sidebar
   var unitRow = state.data.find(function(r){ return String(r.id) === String(unitId); });
   // Load inspections immediately
@@ -459,7 +469,6 @@ window.openUnitSidebar = function(dataset) {
     window.loadSidebarChecks(unitId, unitName, unitRow);
   }
   // Curator tab — loaded on demand
-  var _curatorLoaded = false;
   document.querySelectorAll('.su-tab').forEach(function(btn) {
     btn.onclick = function() {
       var t = btn.dataset.tab;
@@ -518,15 +527,16 @@ function updateKPI(){
   const totalM30   = rows.reduce(function(s,r){ return s + Number(r.m30||0); }, 0);
   const totalYtd   = rows.reduce(function(s,r){ return s + Number(r.ytd||0); }, 0);
   const totalUnits = rows.length;
+  var totalAll = 0;
+  try {
+    var st = window._unitsTableStats || {};
+    Object.keys(st).forEach(function(k){ totalAll += Number(st[k].checks_total || 0); });
+  } catch(e) {}
 
   el.innerHTML =
-    '<div class="kpi-grid">' +
-      '<div class="kpi-card"><span class="kpi-value">' + totalToday + '</span><span class="kpi-label">Сьогодні</span></div>' +
-      '<div class="kpi-card"><span class="kpi-value">' + totalM30   + '</span><span class="kpi-label">За 30 днів</span></div>' +
-      '<div class="kpi-card"><span class="kpi-value">' + totalYtd   + '</span><span class="kpi-label">З поч. року</span></div>' +
-    '</div>' +
-    '<div class="kpi-summary">' +
-      '<span class="kpi-summary-total">Підрозділів: <strong>' + totalUnits + '</strong></span>' +
+    '<div class="kpi-grid kpi-grid-2">' +
+      '<div class="kpi-card"><span class="kpi-value">' + totalYtd   + '</span><span class="kpi-label">З початку року</span></div>' +
+      '<div class="kpi-card"><span class="kpi-value">' + totalAll   + '</span><span class="kpi-label">Усього</span></div>' +
     '</div>';
 
   // Render top-5 units by ytd checks
@@ -830,6 +840,10 @@ async function boot(){
 
 boot().catch(e=>console.warn('Boot failed', e));
 
+document.addEventListener('userSignedIn', function(){
+  if (typeof updateUnitsTable === 'function') updateUnitsTable();
+});
+
 // ============================================================
 // UNITS TABLE (right sidebar — all units, personnel, checks)
 // ============================================================
@@ -841,6 +855,8 @@ async function loadUnitsTableStats() {
     var data = await window.localAPI.fetch('/unit-stats');
     _unitsTableStats = data || {};
   } catch(e) { _unitsTableStats = {}; }
+  window._unitsTableStats = _unitsTableStats;
+  if (typeof updateKPI === 'function') updateKPI();
 }
 
 function renderUnitsTable() {

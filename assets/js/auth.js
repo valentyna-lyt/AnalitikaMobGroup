@@ -28,7 +28,12 @@ function handleSignIn(user) {
   window.userProfile = { role: user.role, full_name: user.full_name };
 
   var emailEl = document.getElementById('user-email');
-  if (emailEl) emailEl.textContent = user.email;
+  if (emailEl) {
+    emailEl.textContent = user.full_name || user.email;
+    emailEl.style.cursor = 'pointer';
+    emailEl.title = '';
+    emailEl.onclick = function(e) { e.stopPropagation(); window.showUserInfoPopup(user, emailEl); };
+  }
 
   var adminBtn = document.getElementById('btn-admin');
   if (adminBtn) adminBtn.style.display = isAdmin() ? '' : 'none';
@@ -167,6 +172,64 @@ function bindAuthUI() {
       if (typeof openAdminPanel === 'function') openAdminPanel();
     });
   }
+}
+
+window.showUserInfoPopup = function(user, anchor) {
+  var existing = document.getElementById('user-info-popup');
+  if (existing) { existing.remove(); return; }
+
+  var roleLabels = { admin: 'Адміністратор', curator: 'Куратор', viewer: 'Переглядач' };
+  var roleBadge = roleLabels[user.role] || user.role;
+
+  var permsHtml = '';
+  if (user.role === 'admin') {
+    permsHtml =
+      '<div class="uip-stat"><span class="uip-icon">🛡️</span><div><div class="uip-label">Доступ</div><div class="uip-value">Повний</div></div></div>' +
+      '<div class="uip-stat"><span class="uip-icon">✅</span><div><div class="uip-label">Може редагувати</div><div class="uip-value">Усі підрозділи · графік МГ · перевірки · користувачі</div></div></div>';
+  } else if (user.role === 'curator') {
+    permsHtml =
+      '<div class="uip-stat"><span class="uip-icon">📂</span><div><div class="uip-label">Куст</div><div class="uip-value">' + escHTML(user.assigned_hrup || '— не призначено —') + '</div></div></div>' +
+      '<div class="uip-stat"><span class="uip-icon">✏️</span><div><div class="uip-label">Може редагувати</div><div class="uip-value">Кураторську справу підрозділів свого куста</div></div></div>' +
+      '<div class="uip-stat"><span class="uip-icon">👁</span><div><div class="uip-label">Решта підрозділів</div><div class="uip-value">Лише перегляд</div></div></div>';
+  } else {
+    permsHtml =
+      '<div class="uip-stat"><span class="uip-icon">👁</span><div><div class="uip-label">Доступ</div><div class="uip-value">Лише перегляд даних</div></div></div>';
+  }
+
+  var pop = document.createElement('div');
+  pop.id = 'user-info-popup';
+  pop.className = 'unit-popup user-info-popup';
+  pop.innerHTML =
+    '<div class="popup-header">' +
+      '<div class="popup-name">' + escHTML(user.full_name || user.email) + '</div>' +
+      '<div class="popup-badges"><span class="popup-badge">' + escHTML(roleBadge) + '</span></div>' +
+    '</div>' +
+    '<div class="popup-body">' +
+      '<div class="uip-email">📧 ' + escHTML(user.email) + '</div>' +
+      '<div class="uip-stats">' + permsHtml + '</div>' +
+    '</div>';
+
+  document.body.appendChild(pop);
+  var r = anchor.getBoundingClientRect();
+  pop.style.position = 'fixed';
+  pop.style.zIndex = '9999';
+  var top = r.bottom + 8;
+  var left = Math.max(8, Math.min(window.innerWidth - 308, r.left));
+  pop.style.top = top + 'px';
+  pop.style.left = left + 'px';
+
+  setTimeout(function(){
+    function close(ev){
+      if (pop.contains(ev.target)) return;
+      pop.remove();
+      document.removeEventListener('click', close);
+    }
+    document.addEventListener('click', close);
+  }, 0);
+};
+
+function escHTML(s) {
+  return (s == null ? '' : String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 bindAuthUI();

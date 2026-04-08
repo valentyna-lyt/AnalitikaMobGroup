@@ -1,171 +1,160 @@
-// mobile.js — PWA bottom sheet & bottom nav for phone layout
+// mobile.js — Hamburger drawer + read-only viewer mode for phones
 (function () {
   'use strict';
 
-  var MOBILE_BP = 640;
-  function isMobile() { return window.innerWidth <= MOBILE_BP; }
-
-  var sidebar, sheetHandleBar, sheetTitleEl, filterBar, sidebarUnit, sidebarDefault;
-
-  // ── Open / Collapse sheet ───────────────────────────────────────────────────
-  function openSheet() {
-    if (sidebar) sidebar.classList.add('sheet-open');
-    setActiveNav('units');
+  var MOBILE_BP = 1366;
+  function isMobile() {
+    // Treat any touch device or narrow window as mobile/tablet
+    var touch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    return touch || window.innerWidth <= MOBILE_BP;
   }
-  function collapseSheet() {
-    if (sidebar) sidebar.classList.remove('sheet-open');
-    setActiveNav('map');
-  }
-  function isSheetOpen() { return sidebar && sidebar.classList.contains('sheet-open'); }
 
-  // ── Bottom nav active state ─────────────────────────────────────────────────
-  function setActiveNav(name) {
-    ['map', 'units', 'filter'].forEach(function (n) {
-      var btn = document.getElementById('mbn-' + n);
-      if (btn) btn.classList.toggle('active', n === name);
+  // Force everyone into viewer mode on mobile
+  window.IS_MOBILE_VIEWER = false;
+
+  var sidebar, sidebarDefault, sidebarUnit;
+  var drawer, overlay, hamburger;
+  var currentView = 'map';
+
+  function escHTML(s) {
+    return (s == null ? '' : String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function openDrawer() {
+    drawer.classList.add('open');
+    overlay.classList.add('open');
+    hamburger.classList.add('open');
+  }
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    overlay.classList.remove('open');
+    hamburger.classList.remove('open');
+  }
+
+  function setActiveMenu(view) {
+    document.querySelectorAll('.m-menu-item').forEach(function(b){
+      b.classList.toggle('active', b.dataset.view === view);
     });
   }
 
-  // ── Filter panel ────────────────────────────────────────────────────────────
-  function openFilterPanel() {
-    if (filterBar) filterBar.classList.add('mobile-filter-open');
-    setActiveNav('filter');
-  }
-  function closeFilterPanel() {
-    if (filterBar) filterBar.classList.remove('mobile-filter-open');
-  }
-  function isFilterOpen() { return filterBar && filterBar.classList.contains('mobile-filter-open'); }
+  function setView(view) {
+    currentView = view;
+    document.body.classList.remove('m-view-map','m-view-stats','m-view-schedule','m-view-unit');
+    document.body.classList.add('m-view-' + view);
+    setActiveMenu(view);
+    closeDrawer();
 
-  // ── Sheet title ─────────────────────────────────────────────────────────────
-  function updateSheetTitle() {
-    if (!sheetTitleEl) return;
-    var unitName = document.getElementById('sidebar-unit-name');
-    if (sidebarUnit && !sidebarUnit.classList.contains('hidden') && unitName && unitName.textContent) {
-      sheetTitleEl.textContent = unitName.textContent;
-    } else {
-      sheetTitleEl.textContent = 'Підрозділи';
+    if (view === 'map') {
+      if (sidebar) sidebar.classList.remove('sheet-open');
+      try { window.leaflet_map && window.leaflet_map.invalidateSize(); } catch(e){}
+      return;
+    }
+
+    // open sheet, show only the right section
+    if (sidebar) sidebar.classList.add('sheet-open');
+    if (sidebarUnit) sidebarUnit.classList.add('hidden');
+    if (sidebarDefault) sidebarDefault.classList.remove('hidden');
+
+    var schedView = document.getElementById('view-schedule');
+    var kpiBox = document.getElementById('kpi-box');
+    var sectionTitle = document.querySelector('.section-title');
+    var sectionTitleMt = document.querySelector('.section-title-mt');
+
+    function show(el, on) { if (el) el.style.display = on ? '' : 'none'; }
+
+    if (view === 'stats') {
+      show(sectionTitle, true);
+      show(kpiBox, true);
+      show(sectionTitleMt, false);
+      show(schedView, false);
+    } else if (view === 'schedule') {
+      show(sectionTitle, false);
+      show(kpiBox, false);
+      show(sectionTitleMt, true);
+      show(schedView, true);
     }
   }
 
-  // ── Touch drag on handle ────────────────────────────────────────────────────
-  function setupTouchDrag() {
-    if (!sheetHandleBar || !sidebar) return;
-    var startY = 0, lastY = 0, wasOpen = false;
-
-    sheetHandleBar.addEventListener('touchstart', function (e) {
-      startY = e.touches[0].clientY;
-      lastY = startY;
-      wasOpen = isSheetOpen();
-      sidebar.style.transition = 'none';
-    }, { passive: true });
-
-    sheetHandleBar.addEventListener('touchmove', function (e) {
-      lastY = e.touches[0].clientY;
-      var dy = lastY - startY;
-      var sheetH = sidebar.offsetHeight - 54;
-      var translate = wasOpen ? Math.max(0, Math.min(dy, sheetH)) : Math.max(0, sheetH + dy);
-      sidebar.style.transform = 'translateY(' + translate + 'px)';
-    }, { passive: true });
-
-    sheetHandleBar.addEventListener('touchend', function () {
-      sidebar.style.transition = '';
-      sidebar.style.transform = '';
-      var dy = lastY - startY;
-      if (wasOpen && dy > 60) {
-        collapseSheet();
-      } else if (!wasOpen && dy < -60) {
-        openSheet();
-      } else {
-        // snap back
-        if (wasOpen) { sidebar.classList.add('sheet-open'); }
-        else { sidebar.classList.remove('sheet-open'); }
-      }
-    });
+  function renderUserBlock() {
+    var u = window.currentUser || {};
+    var el = document.getElementById('m-drawer-user');
+    if (!el) return;
+    if (!u || !u.email) { el.innerHTML = ''; return; }
+    var initials = (u.full_name || u.email).trim().split(/\s+/).slice(0,2).map(function(s){return s[0]||'';}).join('').toUpperCase();
+    el.innerHTML =
+      '<div class="m-userbox">' +
+        '<div class="m-avatar">' + escHTML(initials) + '</div>' +
+        '<div class="m-userinfo">' +
+          '<div class="m-uname">' + escHTML(u.full_name || u.email) + '</div>' +
+          '<div class="m-urole">Перегляд</div>' +
+        '</div>' +
+      '</div>';
   }
 
-  // ── Auto-expand when unit sidebar becomes visible ───────────────────────────
-  function setupAutoExpand() {
+  // Auto-open unit detail in fullscreen sheet on map tap
+  function setupUnitAutoOpen() {
     if (!sidebarUnit) return;
-    new MutationObserver(function () {
+    new MutationObserver(function(){
       if (!isMobile()) return;
-      updateSheetTitle();
       if (!sidebarUnit.classList.contains('hidden')) {
-        openSheet();
-        closeFilterPanel();
+        document.body.classList.remove('m-view-map','m-view-stats','m-view-schedule');
+        document.body.classList.add('m-view-unit');
+        if (sidebar) sidebar.classList.add('sheet-open');
       }
     }).observe(sidebarUnit, { attributes: true, attributeFilter: ['class'] });
   }
 
-  // ── Bottom nav buttons ──────────────────────────────────────────────────────
-  function setupBottomNav() {
-    var btnMap = document.getElementById('mbn-map');
-    var btnUnits = document.getElementById('mbn-units');
-    var btnFilter = document.getElementById('mbn-filter');
-
-    if (btnMap) btnMap.addEventListener('click', function () {
-      collapseSheet();
-      closeFilterPanel();
-    });
-    if (btnUnits) btnUnits.addEventListener('click', function () {
-      openSheet();
-      closeFilterPanel();
-    });
-    if (btnFilter) btnFilter.addEventListener('click', function () {
-      if (isFilterOpen()) { closeFilterPanel(); setActiveNav(isSheetOpen() ? 'units' : 'map'); }
-      else { openFilterPanel(); }
-    });
-  }
-
-  // ── Sheet handle tap ────────────────────────────────────────────────────────
-  function setupHandleTap() {
-    if (!sheetHandleBar) return;
-    var touchMoved = false;
-    sheetHandleBar.addEventListener('touchstart', function () { touchMoved = false; }, { passive: true });
-    sheetHandleBar.addEventListener('touchmove', function () { touchMoved = true; }, { passive: true });
-    sheetHandleBar.addEventListener('touchend', function () {
-      if (!touchMoved) {
-        isSheetOpen() ? collapseSheet() : openSheet();
-        closeFilterPanel();
-      }
-    });
-    // Also handle click (mouse on emulator)
-    sheetHandleBar.addEventListener('click', function () {
-      isSheetOpen() ? collapseSheet() : openSheet();
-      closeFilterPanel();
-    });
-  }
-
-  // ── Init ────────────────────────────────────────────────────────────────────
   function init() {
     sidebar = document.getElementById('sidebar');
-    sheetHandleBar = document.getElementById('sheetHandleBar');
-    sheetTitleEl = document.getElementById('sheetTitle');
-    filterBar = document.querySelector('.filter-bar');
-    sidebarUnit = document.getElementById('sidebar-unit');
     sidebarDefault = document.getElementById('sidebar-default');
+    sidebarUnit = document.getElementById('sidebar-unit');
+    drawer = document.getElementById('m-drawer');
+    overlay = document.getElementById('m-drawer-overlay');
+    hamburger = document.getElementById('m-hamburger');
 
     if (!isMobile()) return;
 
-    setupBottomNav();
-    setupHandleTap();
-    setupTouchDrag();
-    setupAutoExpand();
-    updateSheetTitle();
+    // Force viewer mode globally
+    window.IS_MOBILE_VIEWER = true;
+
+    if (hamburger) hamburger.addEventListener('click', function(){
+      drawer.classList.contains('open') ? closeDrawer() : openDrawer();
+    });
+    if (overlay) overlay.addEventListener('click', closeDrawer);
+
+    document.querySelectorAll('.m-menu-item[data-view]').forEach(function(b){
+      b.addEventListener('click', function(){ setView(b.dataset.view); });
+    });
+
+    var logout = document.getElementById('m-drawer-logout');
+    if (logout) logout.addEventListener('click', function(){
+      if (typeof handleSignOut === 'function') handleSignOut();
+      else { window.localAPI.setToken(null); location.reload(); }
+    });
+
+    setupUnitAutoOpen();
+    setView('map');
+    renderUserBlock();
+
+    document.addEventListener('userSignedIn', renderUserBlock);
+
+    // Add a "Назад до карти" close button to unit-detail when on mobile
+    var backBtn = document.getElementById('sidebar-back-btn');
+    if (backBtn) {
+      backBtn.addEventListener('click', function(){
+        setTimeout(function(){ setView('map'); }, 50);
+      });
+    }
   }
 
-  // Reinit on orientation/resize
-  window.addEventListener('resize', function () {
+  window.addEventListener('resize', function(){
     if (!isMobile() && sidebar) {
       sidebar.classList.remove('sheet-open');
       sidebar.style.transform = '';
-      sidebar.style.transition = '';
-      if (filterBar) filterBar.classList.remove('mobile-filter-open');
+      window.IS_MOBILE_VIEWER = false;
     }
   });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
