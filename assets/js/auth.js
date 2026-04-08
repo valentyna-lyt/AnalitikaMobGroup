@@ -98,6 +98,18 @@ async function initAuth() {
 }
 
 function bindAuthUI() {
+  // --- Password show/hide eye ---
+  var eye = document.getElementById('login-pwd-eye');
+  if (eye) {
+    eye.addEventListener('click', function() {
+      var inp = document.getElementById('login-password');
+      if (!inp) return;
+      var show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password';
+      eye.textContent = show ? '🙈' : '👁';
+      eye.classList.toggle('on', show);
+    });
+  }
   // --- Login ---
   var loginForm = document.getElementById('auth-login-form');
   if (loginForm) {

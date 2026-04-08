@@ -8,8 +8,8 @@
   <script>
     // FORCE-RESET: unregister stale service workers and clear caches once
     (function(){
-      if (sessionStorage.getItem('sw_reset_v217')) return;
-      sessionStorage.setItem('sw_reset_v217','1');
+      if (sessionStorage.getItem('sw_reset_v218')) return;
+      sessionStorage.setItem('sw_reset_v218','1');
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(rs){
           rs.forEach(function(r){ r.unregister(); });
@@ -46,7 +46,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
 
   <!-- App styles -->
-  <link rel="stylesheet" href="assets/css/styles.css?v=217">
+  <link rel="stylesheet" href="assets/css/styles.css?v=218">
 </head>
 <body>
 
@@ -72,7 +72,10 @@
           </div>
           <div class="auth-field">
             <label class="auth-label">Пароль</label>
-            <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password" class="auth-input">
+            <div class="auth-pwd-wrap">
+              <input type="password" id="login-password" required placeholder="••••••••" autocomplete="current-password" class="auth-input">
+              <button type="button" class="auth-pwd-eye" id="login-pwd-eye" tabindex="-1" aria-label="Показати пароль">👁</button>
+            </div>
           </div>
           <div id="login-error" class="auth-error"></div>
           <button type="submit" class="auth-submit-btn">Увійти</button>
@@ -420,7 +423,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<script src="assets/js/app.bundle.js?v=217"></script>
+<script src="assets/js/app.bundle.js?v=218"></script>
 <script>
 // Sync filter selects with hidden radio inputs
 document.getElementById('filter-period-sel').addEventListener('change', function() {
@@ -443,18 +446,18 @@ document.querySelectorAll('input[name="mapmode"]').forEach(function(r) {
   });
 });
 </script>
-<script src="assets/js/api.js?v=217"></script>
-<script src="assets/js/auth.js?v=217"></script>
-<script src="assets/js/schedule.js?v=217"></script>
-<script src="assets/js/cases.js?v=217"></script>
-<script src="assets/js/admin.js?v=217"></script>
-<script src="assets/js/files.js?v=217"></script>
-<script src="assets/js/curator-sections.js?v=217"></script>
-<script src="assets/js/protect.js?v=217"></script>
-<script src="assets/js/mobile.js?v=217"></script>
+<script src="assets/js/api.js?v=218"></script>
+<script src="assets/js/auth.js?v=218"></script>
+<script src="assets/js/schedule.js?v=218"></script>
+<script src="assets/js/cases.js?v=218"></script>
+<script src="assets/js/admin.js?v=218"></script>
+<script src="assets/js/files.js?v=218"></script>
+<script src="assets/js/curator-sections.js?v=218"></script>
+<script src="assets/js/protect.js?v=218"></script>
+<script src="assets/js/mobile.js?v=218"></script>
 <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js?v=217', { updateViaCache: 'none' }).catch(function(){});
+    navigator.serviceWorker.register('/sw.js?v=218', { updateViaCache: 'none' }).catch(function(){});
   }
 </script>
 

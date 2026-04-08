@@ -760,6 +760,16 @@ textarea.cs-input { resize: vertical; min-height: 60px; font-family: inherit; }
   box-shadow: 0 2px 6px rgba(16,185,129,.3);
 }
 .btn-save.dirty:hover { filter: brightness(1.1); }
+.auth-pwd-wrap { position: relative; }
+.auth-pwd-wrap .auth-input { padding-right: 42px; width: 100%; }
+.auth-pwd-eye {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: transparent; border: none; cursor: pointer;
+  font-size: 18px; padding: 4px 8px; opacity: .65;
+  transition: opacity .15s;
+}
+.auth-pwd-eye:hover { opacity: 1; }
+.auth-pwd-eye.on { opacity: 1; }
 
 /* ============================================================
    BUTTONS (shared)
