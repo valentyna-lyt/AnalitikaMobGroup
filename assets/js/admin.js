@@ -252,7 +252,7 @@ async function refreshAdminUsers() {
     var meId = window.currentUser && window.currentUser.id;
     tbody.innerHTML = users.map(function(u) {
       var isMe = u.id === meId;
-      return '<tr data-uid="' + escHTML(u.id) + '">' +
+      return '<tr data-uid="' + escHTML(u.id) + '" data-orig-role="' + escHTML(u.role) + '" data-orig-hrup="' + escHTML(u.assigned_hrup||'') + '">' +
         '<td>' + escHTML(u.email) + '</td>' +
         '<td>' + escHTML(u.full_name || '—') + '</td>' +
         '<td>' + roleSelectHTML(u.id, u.role) + '</td>' +
@@ -260,49 +260,73 @@ async function refreshAdminUsers() {
         '<td>' + hrupSelectHTML(u.id, u.assigned_hrup, u.role) + '</td>' +
         '<td>' + new Date(u.created_at).toLocaleDateString('uk-UA') + '</td>' +
         '<td style="white-space:nowrap;text-align:center">' +
+          '<button class="btn-sm btn-save admin-save-user" data-id="' + escHTML(u.id) + '" title="Зберегти зміни" disabled>💾</button> ' +
           (isMe ? '<span style="opacity:.4" title="Це ви">—</span>'
                 : '<button class="btn-sm btn-danger admin-del-user" data-id="' + escHTML(u.id) + '" data-email="' + escHTML(u.email) + '" title="Видалити користувача">🗑️</button>') +
         '</td>' +
         '</tr>';
     }).join('');
 
+    // Mark row as dirty when role or hrup changes
+    function markDirty(row) {
+      var saveBtn = row.querySelector('.admin-save-user');
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.classList.add('dirty'); }
+    }
+
     async function patchUser(uid, body) {
       try { await window.localAPI.fetch('/users/' + uid, { method:'PATCH', body: JSON.stringify(body) }); }
       catch(e) { alert('Помилка: ' + e.message); await refreshAdminUsers(); }
     }
     tbody.querySelectorAll('.role-select').forEach(function(sel){
-      sel.addEventListener('change', async function(){
-        var uid = sel.dataset.id;
-        var newRole = sel.value;
+      sel.addEventListener('change', function(){
         var row = sel.closest('tr');
         var hrupSel = row.querySelector('.hrup-select');
-        var body = { role: newRole };
-        if (newRole === 'curator') {
+        if (sel.value === 'curator') {
           if (hrupSel) hrupSel.disabled = false;
-          if (hrupSel && !hrupSel.value) {
-            alert('Оберіть кущ для куратора у колонці "Кущ"');
-            return;
-          }
-          if (hrupSel) body.assigned_hrup = hrupSel.value;
         } else {
-          body.assigned_hrup = null;
           if (hrupSel) { hrupSel.value = ''; hrupSel.disabled = true; }
         }
-        await patchUser(uid, body);
+        markDirty(row);
       });
     });
     tbody.querySelectorAll('.hrup-select').forEach(function(sel){
-      sel.addEventListener('change', async function(){
-        var uid = sel.dataset.id;
-        var row = sel.closest('tr');
+      sel.addEventListener('change', function(){
+        markDirty(sel.closest('tr'));
+      });
+    });
+
+    tbody.querySelectorAll('.admin-save-user').forEach(function(btn){
+      btn.addEventListener('click', async function(){
+        var row = btn.closest('tr');
+        var uid = btn.dataset.id;
         var roleSel = row.querySelector('.role-select');
-        var body = { assigned_hrup: sel.value || null };
-        // If a kushch is assigned, auto-promote to curator
-        if (sel.value && roleSel && roleSel.value !== 'curator' && roleSel.value !== 'admin') {
-          body.role = 'curator';
-          roleSel.value = 'curator';
+        var hrupSel = row.querySelector('.hrup-select');
+        var newRole = roleSel.value;
+        var body = { role: newRole };
+        if (newRole === 'curator') {
+          if (!hrupSel || !hrupSel.value) {
+            alert('Для куратора обовʼязково оберіть кущ');
+            return;
+          }
+          body.assigned_hrup = hrupSel.value;
+        } else {
+          body.assigned_hrup = null;
         }
-        await patchUser(uid, body);
+        btn.disabled = true;
+        var origText = btn.textContent;
+        btn.textContent = '⏳';
+        try {
+          await patchUser(uid, body);
+          btn.textContent = '✓';
+          btn.classList.remove('dirty');
+          row.dataset.origRole = newRole;
+          row.dataset.origHrup = body.assigned_hrup || '';
+          setTimeout(function(){ btn.textContent = origText; }, 1200);
+        } catch(e) {
+          btn.textContent = origText;
+          btn.disabled = false;
+          alert('Помилка збереження: ' + e.message);
+        }
       });
     });
 
