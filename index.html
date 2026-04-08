@@ -2,11 +2,14 @@
 <html lang="uk">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <script>
     // FORCE-RESET: unregister stale service workers and clear caches once
     (function(){
-      if (sessionStorage.getItem('sw_reset_v204')) return;
-      sessionStorage.setItem('sw_reset_v204','1');
+      if (sessionStorage.getItem('sw_reset_v210')) return;
+      sessionStorage.setItem('sw_reset_v210','1');
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(rs){
           rs.forEach(function(r){ r.unregister(); });
@@ -43,7 +46,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
 
   <!-- App styles -->
-  <link rel="stylesheet" href="assets/css/styles.css?v=204">
+  <link rel="stylesheet" href="assets/css/styles.css?v=210">
 </head>
 <body>
 
@@ -346,12 +349,12 @@
 
     <!-- Default view: KPI + units table -->
     <div id="sidebar-default">
-      <!-- Hidden elements kept for legacy JS compatibility -->
-      <div id="view-units" class="hidden">
+      <!-- Hidden stubs kept for legacy JS compatibility -->
+      <div id="view-units" style="display:none!important">
         <div id="kpi-box"></div>
-        <input type="search" id="units-table-search" hidden>
-        <select id="units-table-level-filter" hidden></select>
-        <table class="units-main-table" hidden><tbody id="units-main-tbody"></tbody></table>
+        <input type="search" id="units-table-search">
+        <select id="units-table-level-filter"></select>
+        <table class="units-main-table"><tbody id="units-main-tbody"></tbody></table>
       </div>
 
       <!-- VIEW: SCHEDULE (mobile groups, weekends) -->
@@ -458,7 +461,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<script src="assets/js/app.bundle.js?v=204"></script>
+<script src="assets/js/app.bundle.js?v=210"></script>
 <script>
 // Sync filter selects with hidden radio inputs
 document.getElementById('filter-period-sel').addEventListener('change', function() {
@@ -481,18 +484,18 @@ document.querySelectorAll('input[name="mapmode"]').forEach(function(r) {
   });
 });
 </script>
-<script src="assets/js/api.js?v=204"></script>
-<script src="assets/js/auth.js?v=204"></script>
-<script src="assets/js/schedule.js?v=204"></script>
-<script src="assets/js/cases.js?v=204"></script>
-<script src="assets/js/admin.js?v=204"></script>
-<script src="assets/js/files.js?v=204"></script>
-<script src="assets/js/curator-sections.js?v=204"></script>
-<script src="assets/js/protect.js?v=204"></script>
-<script src="assets/js/mobile.js?v=204"></script>
+<script src="assets/js/api.js?v=210"></script>
+<script src="assets/js/auth.js?v=210"></script>
+<script src="assets/js/schedule.js?v=210"></script>
+<script src="assets/js/cases.js?v=210"></script>
+<script src="assets/js/admin.js?v=210"></script>
+<script src="assets/js/files.js?v=210"></script>
+<script src="assets/js/curator-sections.js?v=210"></script>
+<script src="assets/js/protect.js?v=210"></script>
+<script src="assets/js/mobile.js?v=210"></script>
 <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js?v=204', { updateViaCache: 'none' }).catch(function(){});
+    navigator.serviceWorker.register('/sw.js?v=210', { updateViaCache: 'none' }).catch(function(){});
   }
 </script>
 
